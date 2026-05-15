@@ -1,0 +1,4655 @@
+{
+  "format": "mapzero-style",
+  "version": 1,
+  "name": "light",
+  "background": "#f5f7f8",
+  "drawOrder": [
+    "landuse",
+    "water",
+    "aip",
+    "railways",
+    "roads",
+    "boundaries",
+    "buildings",
+    "pois"
+  ],
+  "layers": {
+    "landuse": {
+      "visible": true,
+      "order": 100,
+      "minZoom": 6,
+      "maxZoom": 22,
+      "fill": "#dcebdc",
+      "fillOpacity": 0.55,
+      "stroke": "#7dbb84",
+      "strokeWidth": 0.4,
+      "strokeOpacity": 0.35,
+      "glow": {
+        "enabled": true,
+        "color": "#39ff88",
+        "width": 3,
+        "opacity": 0.12
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 6,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#7dbb84",
+        "width": 0.4,
+        "opacity": 0.35
+      }
+    },
+    "water": {
+      "visible": true,
+      "order": 200,
+      "minZoom": 5,
+      "maxZoom": 22,
+      "fill": "#b8dff3",
+      "fillOpacity": 0.75,
+      "stroke": "#2c8fc4",
+      "strokeWidth": 0.8,
+      "strokeOpacity": 0.85,
+      "glow": {
+        "enabled": true,
+        "color": "#00b7ff",
+        "width": 5,
+        "opacity": 0.22
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 5,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#2c8fc4",
+        "width": 0.8,
+        "opacity": 0.85
+      }
+    },
+    "railways": {
+      "visible": true,
+      "order": 300,
+      "minZoom": 9,
+      "maxZoom": 22,
+      "stroke": "#806000",
+      "strokeWidth": 1.1,
+      "strokeOpacity": 0.85,
+      "glow": {
+        "enabled": true,
+        "color": "#ffcc00",
+        "width": 4,
+        "opacity": 0.18
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 9,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#806000",
+        "width": 1.1,
+        "opacity": 0.85
+      }
+    },
+    "roads": {
+      "visible": true,
+      "order": 400,
+      "minZoom": 8,
+      "maxZoom": 22,
+      "stroke": "#3ab6c8",
+      "strokeWidth": 1.1,
+      "strokeOpacity": 1,
+      "lineCap": "round",
+      "lineJoin": "round",
+      "miterLimit": 2,
+      "widthScale": {
+        "stops": [
+          [
+            8,
+            0.18
+          ],
+          [
+            10,
+            0.28
+          ],
+          [
+            12,
+            0.46
+          ],
+          [
+            13,
+            0.68
+          ],
+          [
+            14,
+            1
+          ],
+          [
+            15,
+            1.18
+          ],
+          [
+            16,
+            1.42
+          ],
+          [
+            17,
+            1.7
+          ],
+          [
+            18,
+            2
+          ],
+          [
+            19,
+            2.3
+          ],
+          [
+            20,
+            2.6
+          ],
+          [
+            21,
+            2.9
+          ],
+          [
+            22,
+            3.15
+          ]
+        ]
+      },
+      "casing": {
+        "enabled": true,
+        "color": "#063a46",
+        "width": 1.9,
+        "opacity": 1
+      },
+      "centerLine": {
+        "enabled": false,
+        "color": "#ffffff",
+        "width": 0.5,
+        "opacity": 0
+      },
+      "glow": {
+        "enabled": false,
+        "color": "#00ffff",
+        "width": 0,
+        "opacity": 0
+      },
+      "semantics": {
+        "bridge": {
+          "enabled": false,
+          "shadow": "#02080a",
+          "casing": "#a4f3ff",
+          "body": "#46b7c4"
+        },
+        "tunnel": {
+          "enabled": false,
+          "color": "#124650",
+          "dash": [
+            10,
+            7
+          ],
+          "opacity": 0.72
+        },
+        "oneway": {
+          "enabled": false,
+          "minZoom": 15,
+          "color": "#c9fbff",
+          "dash": [
+            1.2,
+            9
+          ],
+          "opacity": 0.85
+        },
+        "construction": {
+          "enabled": false,
+          "color": "#d9a520",
+          "dash": [
+            7,
+            5
+          ],
+          "opacity": 0.95
+        },
+        "restrictedAccess": {
+          "enabled": false,
+          "minZoom": 15,
+          "color": "#0b3238",
+          "dash": [
+            5,
+            5
+          ],
+          "opacity": 0.75
+        }
+      },
+      "byProperty": {
+        "highway": {
+          "motorway": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#257f98",
+            "strokeWidth": 4.2,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5.4,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#ffffff",
+              "width": 0.45,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#257f98",
+              "width": 4.2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#ffffff",
+              "width": 0.45,
+              "opacity": 0
+            }
+          },
+          "motorway_link": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#257f98",
+            "strokeWidth": 4,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5.2,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#eaffff",
+              "width": 0.45,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#257f98",
+              "width": 4,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#eaffff",
+              "width": 0.45,
+              "opacity": 0
+            }
+          },
+          "trunk": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#257f98",
+            "strokeWidth": 4.2,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5.4,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#dfffff",
+              "width": 0.4,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#257f98",
+              "width": 4.2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#dfffff",
+              "width": 0.4,
+              "opacity": 0
+            }
+          },
+          "trunk_link": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#257f98",
+            "strokeWidth": 4,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5.2,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#d8ffff",
+              "width": 0.4,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#257f98",
+              "width": 4,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#d8ffff",
+              "width": 0.4,
+              "opacity": 0
+            }
+          },
+          "primary": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.2
+                ],
+                [
+                  10,
+                  0.3
+                ],
+                [
+                  12,
+                  0.48
+                ],
+                [
+                  13,
+                  0.7
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#257f98",
+            "strokeWidth": 4,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5.2,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#d6ffff",
+              "width": 0.35,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#257f98",
+              "width": 4,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.2
+                  ],
+                  [
+                    10,
+                    0.3
+                  ],
+                  [
+                    12,
+                    0.48
+                  ],
+                  [
+                    13,
+                    0.7
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#d6ffff",
+              "width": 0.35,
+              "opacity": 0
+            }
+          },
+          "primary_link": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.8,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5,
+              "opacity": 1
+            },
+            "centerLine": {
+              "enabled": false,
+              "color": "#ccffff",
+              "width": 0.45,
+              "opacity": 0
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.8,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            },
+            "center": {
+              "enabled": false,
+              "color": "#ccffff",
+              "width": 0.45,
+              "opacity": 0
+            }
+          },
+          "secondary": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.2
+                ],
+                [
+                  10,
+                  0.3
+                ],
+                [
+                  12,
+                  0.48
+                ],
+                [
+                  13,
+                  0.7
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.8,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.8,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.2
+                  ],
+                  [
+                    10,
+                    0.3
+                  ],
+                  [
+                    12,
+                    0.48
+                  ],
+                  [
+                    13,
+                    0.7
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "secondary_link": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.8,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.8,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            }
+          },
+          "tertiary": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.2
+                ],
+                [
+                  10,
+                  0.3
+                ],
+                [
+                  12,
+                  0.48
+                ],
+                [
+                  13,
+                  0.7
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.8,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.8,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.2
+                  ],
+                  [
+                    10,
+                    0.3
+                  ],
+                  [
+                    12,
+                    0.48
+                  ],
+                  [
+                    13,
+                    0.7
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "tertiary_link": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.22
+                ],
+                [
+                  10,
+                  0.32
+                ],
+                [
+                  12,
+                  0.5
+                ],
+                [
+                  13,
+                  0.72
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.4
+                ],
+                [
+                  17,
+                  1.65
+                ],
+                [
+                  18,
+                  1.95
+                ],
+                [
+                  19,
+                  2.25
+                ],
+                [
+                  20,
+                  2.55
+                ],
+                [
+                  21,
+                  2.85
+                ],
+                [
+                  22,
+                  3.1
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.8,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 5,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.8,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.22
+                  ],
+                  [
+                    10,
+                    0.32
+                  ],
+                  [
+                    12,
+                    0.5
+                  ],
+                  [
+                    13,
+                    0.72
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.4
+                  ],
+                  [
+                    17,
+                    1.65
+                  ],
+                  [
+                    18,
+                    1.95
+                  ],
+                  [
+                    19,
+                    2.25
+                  ],
+                  [
+                    20,
+                    2.55
+                  ],
+                  [
+                    21,
+                    2.85
+                  ],
+                  [
+                    22,
+                    3.1
+                  ]
+                ]
+              }
+            }
+          },
+          "residential": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.18
+                ],
+                [
+                  10,
+                  0.28
+                ],
+                [
+                  12,
+                  0.46
+                ],
+                [
+                  13,
+                  0.68
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.18
+                  ],
+                  [
+                    10,
+                    0.28
+                  ],
+                  [
+                    12,
+                    0.46
+                  ],
+                  [
+                    13,
+                    0.68
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "living_street": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.18
+                ],
+                [
+                  10,
+                  0.28
+                ],
+                [
+                  12,
+                  0.46
+                ],
+                [
+                  13,
+                  0.68
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.18
+                  ],
+                  [
+                    10,
+                    0.28
+                  ],
+                  [
+                    12,
+                    0.46
+                  ],
+                  [
+                    13,
+                    0.68
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "unclassified": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.18
+                ],
+                [
+                  10,
+                  0.28
+                ],
+                [
+                  12,
+                  0.46
+                ],
+                [
+                  13,
+                  0.68
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.18
+                  ],
+                  [
+                    10,
+                    0.28
+                  ],
+                  [
+                    12,
+                    0.46
+                  ],
+                  [
+                    13,
+                    0.68
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "pedestrian": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.18
+                ],
+                [
+                  10,
+                  0.28
+                ],
+                [
+                  12,
+                  0.46
+                ],
+                [
+                  13,
+                  0.68
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.18
+                  ],
+                  [
+                    10,
+                    0.28
+                  ],
+                  [
+                    12,
+                    0.46
+                  ],
+                  [
+                    13,
+                    0.68
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "service": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.14
+                ],
+                [
+                  10,
+                  0.22
+                ],
+                [
+                  12,
+                  0.4
+                ],
+                [
+                  13,
+                  0.64
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.16
+                ],
+                [
+                  16,
+                  1.38
+                ],
+                [
+                  17,
+                  1.62
+                ],
+                [
+                  18,
+                  1.88
+                ],
+                [
+                  19,
+                  2.15
+                ],
+                [
+                  20,
+                  2.42
+                ],
+                [
+                  21,
+                  2.68
+                ],
+                [
+                  22,
+                  2.95
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 3,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 4,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 3,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.14
+                  ],
+                  [
+                    10,
+                    0.22
+                  ],
+                  [
+                    12,
+                    0.4
+                  ],
+                  [
+                    13,
+                    0.64
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.16
+                  ],
+                  [
+                    16,
+                    1.38
+                  ],
+                  [
+                    17,
+                    1.62
+                  ],
+                  [
+                    18,
+                    1.88
+                  ],
+                  [
+                    19,
+                    2.15
+                  ],
+                  [
+                    20,
+                    2.42
+                  ],
+                  [
+                    21,
+                    2.68
+                  ],
+                  [
+                    22,
+                    2.95
+                  ]
+                ]
+              }
+            }
+          },
+          "track": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.14
+                ],
+                [
+                  10,
+                  0.22
+                ],
+                [
+                  12,
+                  0.4
+                ],
+                [
+                  13,
+                  0.64
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.16
+                ],
+                [
+                  16,
+                  1.38
+                ],
+                [
+                  17,
+                  1.62
+                ],
+                [
+                  18,
+                  1.88
+                ],
+                [
+                  19,
+                  2.15
+                ],
+                [
+                  20,
+                  2.42
+                ],
+                [
+                  21,
+                  2.68
+                ],
+                [
+                  22,
+                  2.95
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 3,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 4,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 3,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.14
+                  ],
+                  [
+                    10,
+                    0.22
+                  ],
+                  [
+                    12,
+                    0.4
+                  ],
+                  [
+                    13,
+                    0.64
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.16
+                  ],
+                  [
+                    16,
+                    1.38
+                  ],
+                  [
+                    17,
+                    1.62
+                  ],
+                  [
+                    18,
+                    1.88
+                  ],
+                  [
+                    19,
+                    2.15
+                  ],
+                  [
+                    20,
+                    2.42
+                  ],
+                  [
+                    21,
+                    2.68
+                  ],
+                  [
+                    22,
+                    2.95
+                  ]
+                ]
+              }
+            }
+          },
+          "path": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "footway": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "steps": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "cycleway": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "corridor": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "construction": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.14
+                ],
+                [
+                  10,
+                  0.22
+                ],
+                [
+                  12,
+                  0.4
+                ],
+                [
+                  13,
+                  0.64
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.16
+                ],
+                [
+                  16,
+                  1.38
+                ],
+                [
+                  17,
+                  1.62
+                ],
+                [
+                  18,
+                  1.88
+                ],
+                [
+                  19,
+                  2.15
+                ],
+                [
+                  20,
+                  2.42
+                ],
+                [
+                  21,
+                  2.68
+                ],
+                [
+                  22,
+                  2.95
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 3,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 4,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#ffcc00",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 3,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.14
+                  ],
+                  [
+                    10,
+                    0.22
+                  ],
+                  [
+                    12,
+                    0.4
+                  ],
+                  [
+                    13,
+                    0.64
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.16
+                  ],
+                  [
+                    16,
+                    1.38
+                  ],
+                  [
+                    17,
+                    1.62
+                  ],
+                  [
+                    18,
+                    1.88
+                  ],
+                  [
+                    19,
+                    2.15
+                  ],
+                  [
+                    20,
+                    2.42
+                  ],
+                  [
+                    21,
+                    2.68
+                  ],
+                  [
+                    22,
+                    2.95
+                  ]
+                ]
+              }
+            }
+          },
+          "proposed": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.14
+                ],
+                [
+                  10,
+                  0.22
+                ],
+                [
+                  12,
+                  0.4
+                ],
+                [
+                  13,
+                  0.64
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.16
+                ],
+                [
+                  16,
+                  1.38
+                ],
+                [
+                  17,
+                  1.62
+                ],
+                [
+                  18,
+                  1.88
+                ],
+                [
+                  19,
+                  2.15
+                ],
+                [
+                  20,
+                  2.42
+                ],
+                [
+                  21,
+                  2.68
+                ],
+                [
+                  22,
+                  2.95
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 3,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 4,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 3,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.14
+                  ],
+                  [
+                    10,
+                    0.22
+                  ],
+                  [
+                    12,
+                    0.4
+                  ],
+                  [
+                    13,
+                    0.64
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.16
+                  ],
+                  [
+                    16,
+                    1.38
+                  ],
+                  [
+                    17,
+                    1.62
+                  ],
+                  [
+                    18,
+                    1.88
+                  ],
+                  [
+                    19,
+                    2.15
+                  ],
+                  [
+                    20,
+                    2.42
+                  ],
+                  [
+                    21,
+                    2.68
+                  ],
+                  [
+                    22,
+                    2.95
+                  ]
+                ]
+              }
+            }
+          },
+          "busway": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.2
+                ],
+                [
+                  10,
+                  0.3
+                ],
+                [
+                  12,
+                  0.48
+                ],
+                [
+                  13,
+                  0.7
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.2
+                  ],
+                  [
+                    10,
+                    0.3
+                  ],
+                  [
+                    12,
+                    0.48
+                  ],
+                  [
+                    13,
+                    0.7
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          },
+          "platform": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.1
+                ],
+                [
+                  10,
+                  0.16
+                ],
+                [
+                  12,
+                  0.28
+                ],
+                [
+                  13,
+                  0.48
+                ],
+                [
+                  14,
+                  0.75
+                ],
+                [
+                  15,
+                  1.1
+                ],
+                [
+                  16,
+                  1.28
+                ],
+                [
+                  17,
+                  1.5
+                ],
+                [
+                  18,
+                  1.72
+                ],
+                [
+                  19,
+                  1.95
+                ],
+                [
+                  20,
+                  2.18
+                ],
+                [
+                  21,
+                  2.4
+                ],
+                [
+                  22,
+                  2.6
+                ]
+              ]
+            },
+            "stroke": "#78969d",
+            "strokeWidth": 2,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#f0f4f5",
+              "width": 2.8,
+              "opacity": 1
+            },
+            "glow": {
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#78969d",
+              "width": 2,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.1
+                  ],
+                  [
+                    10,
+                    0.16
+                  ],
+                  [
+                    12,
+                    0.28
+                  ],
+                  [
+                    13,
+                    0.48
+                  ],
+                  [
+                    14,
+                    0.75
+                  ],
+                  [
+                    15,
+                    1.1
+                  ],
+                  [
+                    16,
+                    1.28
+                  ],
+                  [
+                    17,
+                    1.5
+                  ],
+                  [
+                    18,
+                    1.72
+                  ],
+                  [
+                    19,
+                    1.95
+                  ],
+                  [
+                    20,
+                    2.18
+                  ],
+                  [
+                    21,
+                    2.4
+                  ],
+                  [
+                    22,
+                    2.6
+                  ]
+                ]
+              }
+            }
+          },
+          "road": {
+            "widthScale": {
+              "stops": [
+                [
+                  8,
+                  0.18
+                ],
+                [
+                  10,
+                  0.28
+                ],
+                [
+                  12,
+                  0.46
+                ],
+                [
+                  13,
+                  0.68
+                ],
+                [
+                  14,
+                  1
+                ],
+                [
+                  15,
+                  1.18
+                ],
+                [
+                  16,
+                  1.42
+                ],
+                [
+                  17,
+                  1.7
+                ],
+                [
+                  18,
+                  2
+                ],
+                [
+                  19,
+                  2.3
+                ],
+                [
+                  20,
+                  2.6
+                ],
+                [
+                  21,
+                  2.9
+                ],
+                [
+                  22,
+                  3.15
+                ]
+              ]
+            },
+            "stroke": "#4c9daf",
+            "strokeWidth": 3.6,
+            "strokeOpacity": 1,
+            "casing": {
+              "color": "#ffffff",
+              "width": 4.8,
+              "opacity": 1
+            },
+            "glow": {
+              "color": "#00ffff",
+              "width": 0,
+              "opacity": 0,
+              "enabled": false
+            },
+            "lineCap": "round",
+            "lineJoin": "round",
+            "visibility": {},
+            "body": {
+              "color": "#4c9daf",
+              "width": 3.6,
+              "opacity": 1,
+              "lineCap": "round",
+              "lineJoin": "round",
+              "widthScale": {
+                "stops": [
+                  [
+                    8,
+                    0.18
+                  ],
+                  [
+                    10,
+                    0.28
+                  ],
+                  [
+                    12,
+                    0.46
+                  ],
+                  [
+                    13,
+                    0.68
+                  ],
+                  [
+                    14,
+                    1
+                  ],
+                  [
+                    15,
+                    1.18
+                  ],
+                  [
+                    16,
+                    1.42
+                  ],
+                  [
+                    17,
+                    1.7
+                  ],
+                  [
+                    18,
+                    2
+                  ],
+                  [
+                    19,
+                    2.3
+                  ],
+                  [
+                    20,
+                    2.6
+                  ],
+                  [
+                    21,
+                    2.9
+                  ],
+                  [
+                    22,
+                    3.15
+                  ]
+                ]
+              }
+            }
+          }
+        }
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 8,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#3ab6c8",
+        "width": 1.1,
+        "opacity": 1,
+        "lineCap": "round",
+        "lineJoin": "round",
+        "widthScale": {
+          "stops": [
+            [
+              8,
+              0.18
+            ],
+            [
+              10,
+              0.28
+            ],
+            [
+              12,
+              0.46
+            ],
+            [
+              13,
+              0.68
+            ],
+            [
+              14,
+              1
+            ],
+            [
+              15,
+              1.18
+            ],
+            [
+              16,
+              1.42
+            ],
+            [
+              17,
+              1.7
+            ],
+            [
+              18,
+              2
+            ],
+            [
+              19,
+              2.3
+            ],
+            [
+              20,
+              2.6
+            ],
+            [
+              21,
+              2.9
+            ],
+            [
+              22,
+              3.15
+            ]
+          ]
+        }
+      },
+      "center": {
+        "enabled": false,
+        "color": "#ffffff",
+        "width": 0.5,
+        "opacity": 0
+      },
+      "bridge": {
+        "enabled": false,
+        "shadow": "#02080a",
+        "casing": "#a4f3ff",
+        "body": "#46b7c4"
+      },
+      "tunnel": {
+        "enabled": false,
+        "color": "#124650",
+        "dash": [
+          10,
+          7
+        ],
+        "opacity": 0.72
+      },
+      "oneway": {
+        "enabled": false,
+        "minZoom": 15,
+        "color": "#c9fbff",
+        "dash": [
+          1.2,
+          9
+        ],
+        "opacity": 0.85
+      },
+      "construction": {
+        "enabled": false,
+        "color": "#d9a520",
+        "dash": [
+          7,
+          5
+        ],
+        "opacity": 0.95
+      },
+      "restrictedAccess": {
+        "enabled": false,
+        "minZoom": 15,
+        "color": "#0b3238",
+        "dash": [
+          5,
+          5
+        ],
+        "opacity": 0.75
+      }
+    },
+    "boundaries": {
+      "visible": true,
+      "order": 650,
+      "minZoom": 5,
+      "maxZoom": 22,
+      "stroke": "#7c5fb8",
+      "strokeWidth": 1,
+      "strokeOpacity": 0.45,
+      "fill": "#220044",
+      "fillOpacity": 0.06,
+      "glow": {
+        "enabled": true,
+        "color": "#8844ff",
+        "width": 3,
+        "opacity": 0.08
+      },
+      "byProperty": {
+        "admin_level": {
+          "2": {
+            "strokeWidth": 2.4,
+            "strokeOpacity": 0.86,
+            "visibility": {},
+            "body": {
+              "width": 2.4,
+              "opacity": 0.86
+            }
+          },
+          "4": {
+            "strokeWidth": 1.7,
+            "strokeOpacity": 0.68,
+            "visibility": {},
+            "body": {
+              "width": 1.7,
+              "opacity": 0.68
+            }
+          },
+          "6": {
+            "strokeWidth": 1.15,
+            "strokeOpacity": 0.5,
+            "visibility": {},
+            "body": {
+              "width": 1.15,
+              "opacity": 0.5
+            }
+          },
+          "8": {
+            "strokeWidth": 0.75,
+            "strokeOpacity": 0.32,
+            "visibility": {},
+            "body": {
+              "width": 0.75,
+              "opacity": 0.32
+            }
+          },
+          "9": {
+            "strokeWidth": 0.7,
+            "strokeOpacity": 0.28,
+            "visibility": {},
+            "body": {
+              "width": 0.7,
+              "opacity": 0.28
+            }
+          },
+          "10": {
+            "strokeWidth": 0.65,
+            "strokeOpacity": 0.24,
+            "visibility": {},
+            "body": {
+              "width": 0.65,
+              "opacity": 0.24
+            }
+          },
+          "11": {
+            "strokeWidth": 0.6,
+            "strokeOpacity": 0.2,
+            "visibility": {},
+            "body": {
+              "width": 0.6,
+              "opacity": 0.2
+            }
+          }
+        }
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 5,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#7c5fb8",
+        "width": 1,
+        "opacity": 0.45
+      }
+    },
+    "buildings": {
+      "visible": true,
+      "order": 700,
+      "minZoom": 12,
+      "maxZoom": 22,
+      "fill": "#e8e1da",
+      "fillOpacity": 0.55,
+      "stroke": "#8a4f78",
+      "strokeWidth": 0.8,
+      "strokeOpacity": 0.7,
+      "glow": {
+        "enabled": true,
+        "color": "#ff00ff",
+        "width": 4,
+        "opacity": 0.18
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 12,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#8a4f78",
+        "width": 0.8,
+        "opacity": 0.7
+      }
+    },
+    "pois": {
+      "visible": true,
+      "order": 800,
+      "minZoom": 16,
+      "maxZoom": 22,
+      "fill": "#f8ff4d",
+      "fillOpacity": 0.95,
+      "stroke": "#000000",
+      "strokeWidth": 0.8,
+      "strokeOpacity": 0.85,
+      "glow": {
+        "enabled": true,
+        "color": "#f8ff4d",
+        "width": 5,
+        "opacity": 0.28
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 16,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#000000",
+        "width": 0.8,
+        "opacity": 0.85
+      },
+      "categories": {
+        "transport": true,
+        "emergency": true,
+        "government": true,
+        "energy": true,
+        "communications": true,
+        "protected": true,
+        "industrial": true,
+        "military": true,
+        "operational": true,
+        "consumer": false
+      },
+      "classes": {
+        "amenity": [
+          "railway_station",
+          "train_station",
+          "subway_station",
+          "bus_station",
+          "ferry_terminal",
+          "airport",
+          "hospital",
+          "police",
+          "fire_station",
+          "shelter",
+          "townhall",
+          "courthouse",
+          "prison",
+          "ranger_station",
+          "research_institute",
+          "communications_tower",
+          "bunker",
+          "checkpoint",
+          "depot",
+          "warehouse"
+        ],
+        "tourism": [
+          "information",
+          "national_park"
+        ],
+        "shop": [],
+        "leisure": [
+          "nature_reserve"
+        ],
+        "railway": [
+          "station"
+        ],
+        "public_transport": [
+          "station"
+        ],
+        "station": [
+          "subway"
+        ],
+        "aeroway": [
+          "aerodrome",
+          "airport"
+        ],
+        "power": [
+          "plant",
+          "substation",
+          "generator",
+          "tower",
+          "transformer",
+          "line"
+        ],
+        "man_made": [
+          "communications_tower",
+          "mast",
+          "antenna"
+        ],
+        "tower:type": [
+          "communication"
+        ],
+        "military": [
+          "barracks",
+          "bunker",
+          "checkpoint",
+          "airbase",
+          "naval_base",
+          "range",
+          "training_area",
+          "base",
+          "airfield",
+          "danger_area",
+          "ammunition_dump"
+        ],
+        "emergency": [
+          "ambulance_station",
+          "siren",
+          "assembly_point",
+          "disaster_response"
+        ],
+        "office": [
+          "government"
+        ],
+        "government": [
+          "yes",
+          "public_safety",
+          "border_control",
+          "customs",
+          "ministry",
+          "aerospace"
+        ],
+        "boundary": [
+          "protected_area"
+        ],
+        "protect_class": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "landuse": [
+          "industrial"
+        ],
+        "industrial": [
+          "refinery",
+          "depot",
+          "storage",
+          "logistics"
+        ]
+      },
+      "byProperty": {
+        "poi_category": {
+          "transport": {
+            "fill": "#9fffff",
+            "fillOpacity": 0.95,
+            "glow": {
+              "color": "#00ffff",
+              "opacity": 0.22
+            }
+          },
+          "emergency": {
+            "fill": "#fff7a8",
+            "fillOpacity": 0.98,
+            "glow": {
+              "color": "#ffe85c",
+              "opacity": 0.28
+            }
+          },
+          "government": {
+            "fill": "#d8c7ff",
+            "fillOpacity": 0.92
+          },
+          "energy": {
+            "fill": "#ffcc55",
+            "fillOpacity": 0.9
+          },
+          "communications": {
+            "fill": "#66ffcc",
+            "fillOpacity": 0.9
+          },
+          "protected": {
+            "fill": "#70ff96",
+            "fillOpacity": 0.78
+          },
+          "industrial": {
+            "fill": "#ffa657",
+            "fillOpacity": 0.84
+          },
+          "military": {
+            "fill": "#ff6b6b",
+            "fillOpacity": 0.95,
+            "glow": {
+              "color": "#ff3344",
+              "opacity": 0.28
+            }
+          },
+          "consumer": {
+            "visibility": {
+              "visible": false
+            }
+          }
+        }
+      }
+    },
+    "aip": {
+      "visible": true,
+      "order": 620,
+      "minZoom": 10,
+      "maxZoom": 22,
+      "stroke": "#ccffff",
+      "strokeWidth": 1.5,
+      "strokeOpacity": 0.8,
+      "fill": "#002233",
+      "fillOpacity": 0.12,
+      "glow": {
+        "enabled": true,
+        "color": "#00ffff",
+        "width": 6,
+        "opacity": 0.22
+      },
+      "byProperty": {
+        "aeroway": {
+          "runway": {
+            "stroke": "#ffffff",
+            "strokeWidth": 4,
+            "strokeOpacity": 0.95,
+            "glow": {
+              "color": "#00ffff",
+              "width": 14,
+              "opacity": 0.45
+            },
+            "visibility": {},
+            "body": {
+              "color": "#ffffff",
+              "width": 4,
+              "opacity": 0.95
+            }
+          },
+          "taxiway": {
+            "stroke": "#00ffff",
+            "strokeWidth": 2,
+            "strokeOpacity": 0.8,
+            "glow": {
+              "color": "#00ffff",
+              "width": 7,
+              "opacity": 0.24
+            },
+            "visibility": {},
+            "body": {
+              "color": "#00ffff",
+              "width": 2,
+              "opacity": 0.8
+            }
+          },
+          "apron": {
+            "fill": "#003344",
+            "fillOpacity": 0.18,
+            "stroke": "#00ffff",
+            "strokeWidth": 0.8,
+            "strokeOpacity": 0.45,
+            "visibility": {},
+            "body": {
+              "color": "#00ffff",
+              "width": 0.8,
+              "opacity": 0.45
+            }
+          },
+          "terminal": {
+            "fill": "#220022",
+            "fillOpacity": 0.2,
+            "stroke": "#ff00ff",
+            "strokeWidth": 1,
+            "strokeOpacity": 0.75,
+            "glow": {
+              "color": "#ff00ff",
+              "width": 4,
+              "opacity": 0.16
+            },
+            "visibility": {},
+            "body": {
+              "color": "#ff00ff",
+              "width": 1,
+              "opacity": 0.75
+            }
+          },
+          "helipad": {
+            "stroke": "#ffffff",
+            "strokeWidth": 1.5,
+            "strokeOpacity": 0.9,
+            "fill": "#003344",
+            "fillOpacity": 0.22,
+            "visibility": {},
+            "body": {
+              "color": "#ffffff",
+              "width": 1.5,
+              "opacity": 0.9
+            }
+          },
+          "navigationaid": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "parking_position": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "holding_position": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "gate": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "threshold": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "windsock": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "tower": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "model_taxiway": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          },
+          "model_runway": {
+            "visible": false,
+            "visibility": {
+              "visible": false
+            }
+          }
+        }
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 10,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#ccffff",
+        "width": 1.5,
+        "opacity": 0.8
+      }
+    }
+  },
+  "schema": "mapzero-style-v1",
+  "labels": {
+    "enabled": true,
+    "roads": {
+      "enabled": true,
+      "minZoom": 13,
+      "fields": [
+        "ref",
+        "name"
+      ],
+      "font": "600 12px sans-serif",
+      "fill": "#24424a",
+      "halo": "#ffffff",
+      "haloWidth": 3,
+      "opacity": 0.86
+    },
+    "pois": {
+      "enabled": false,
+      "minZoom": 17,
+      "fields": [
+        "name"
+      ],
+      "font": "600 11px sans-serif",
+      "fill": "#5e3760",
+      "halo": "#ffffff",
+      "haloWidth": 3,
+      "opacity": 0.78,
+      "categories": {
+        "transport": true,
+        "emergency": true,
+        "government": true,
+        "energy": true,
+        "communications": true,
+        "protected": true,
+        "industrial": true,
+        "military": true,
+        "operational": true,
+        "consumer": false
+      },
+      "classes": {
+        "amenity": [
+          "railway_station",
+          "train_station",
+          "subway_station",
+          "bus_station",
+          "ferry_terminal",
+          "airport",
+          "hospital",
+          "police",
+          "fire_station",
+          "shelter",
+          "townhall",
+          "courthouse",
+          "prison",
+          "ranger_station",
+          "research_institute",
+          "communications_tower",
+          "bunker",
+          "checkpoint",
+          "depot",
+          "warehouse"
+        ],
+        "tourism": [
+          "information",
+          "national_park"
+        ],
+        "shop": [],
+        "leisure": [
+          "nature_reserve"
+        ],
+        "railway": [
+          "station"
+        ],
+        "public_transport": [
+          "station"
+        ],
+        "station": [
+          "subway"
+        ],
+        "aeroway": [
+          "aerodrome",
+          "airport"
+        ],
+        "power": [
+          "plant",
+          "substation",
+          "generator",
+          "tower",
+          "transformer",
+          "line"
+        ],
+        "man_made": [
+          "communications_tower",
+          "mast",
+          "antenna"
+        ],
+        "tower:type": [
+          "communication"
+        ],
+        "military": [
+          "barracks",
+          "bunker",
+          "checkpoint",
+          "airbase",
+          "naval_base",
+          "range",
+          "training_area",
+          "base",
+          "airfield",
+          "danger_area",
+          "ammunition_dump"
+        ],
+        "emergency": [
+          "ambulance_station",
+          "siren",
+          "assembly_point",
+          "disaster_response"
+        ],
+        "office": [
+          "government"
+        ],
+        "government": [
+          "yes",
+          "public_safety",
+          "border_control",
+          "customs",
+          "ministry",
+          "aerospace"
+        ],
+        "boundary": [
+          "protected_area"
+        ],
+        "protect_class": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "landuse": [
+          "industrial"
+        ],
+        "industrial": [
+          "refinery",
+          "depot",
+          "storage",
+          "logistics"
+        ]
+      }
+    },
+    "aip": {
+      "enabled": true,
+      "minZoom": 12,
+      "fields": [
+        "ref",
+        "name"
+      ],
+      "font": "600 12px sans-serif",
+      "fill": "#006b78",
+      "halo": "#ffffff",
+      "haloWidth": 3,
+      "opacity": 0.82
+    }
+  }
+}

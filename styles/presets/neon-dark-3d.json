@@ -1,0 +1,90 @@
+{
+  "format": "mapzero-style",
+  "version": 1,
+  "name": "neon-dark-3d",
+  "background": "#000000",
+  "drawOrder": [
+    "landuse",
+    "water",
+    "aip",
+    "railways",
+    "roads",
+    "boundaries",
+    "buildings",
+    "pois"
+  ],
+  "layers": {
+    "landuse": {
+      "visible": true,
+      "fill": "#174626",
+      "fillOpacity": 0.56,
+      "body": {
+        "color": "#39ff88",
+        "opacity": 0.5
+      }
+    },
+    "water": {
+      "visible": true,
+      "fill": "#005dff",
+      "fillOpacity": 0.62,
+      "body": {
+        "color": "#18cfff",
+        "opacity": 0.78
+      }
+    },
+    "railways": {
+      "visible": true,
+      "body": {
+        "color": "#ffcc33",
+        "opacity": 0.95
+      },
+      "stroke": "#ffcc33",
+      "strokeOpacity": 0.95
+    },
+    "roads": {
+      "visible": true,
+      "body": {
+        "color": "#1efcff",
+        "opacity": 1
+      },
+      "stroke": "#1efcff",
+      "strokeOpacity": 1
+    },
+    "boundaries": {
+      "visible": true,
+      "body": {
+        "color": "#a970ff",
+        "opacity": 1
+      },
+      "stroke": "#a970ff",
+      "strokeOpacity": 1
+    },
+    "buildings": {
+      "visible": true,
+      "fill": "#ff22ff",
+      "fillOpacity": 0.62,
+      "body": {
+        "color": "#ff22ff",
+        "opacity": 0.82
+      },
+      "stroke": "#ff22ff",
+      "strokeOpacity": 0.82
+    },
+    "pois": {
+      "visible": true,
+      "body": {
+        "color": "#ffcc33",
+        "opacity": 0.9
+      }
+    },
+    "aip": {
+      "visible": true,
+      "fill": "#00eaff",
+      "fillOpacity": 1,
+      "body": {
+        "color": "#eaffff",
+        "opacity": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@map-zero/ol",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenLayers integration helper for map-zero packages.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "peerDependencies": {
+    "ol": "^10.9.0",
+    "pmtiles": "^4.4.1"
+  }
+}
