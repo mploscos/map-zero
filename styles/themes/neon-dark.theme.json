@@ -1,0 +1,20 @@
+{
+  "name": "neon-dark",
+  "base": "neon-dark",
+  "colors": {
+    "background": "#03000a",
+    "roads": "#4fcfe3",
+    "roadsMajor": "#b8f7ff",
+    "roadsCasing": "#063a46",
+    "buildings": "#ff00ff",
+    "water": "#0066ff",
+    "landuse": "#0f3d2e",
+    "labels": "#d9fbff",
+    "critical": "#ffcc33"
+  },
+  "intensity": {
+    "roads": 0.9,
+    "buildings": 0.8,
+    "labels": 0.85
+  }
+}

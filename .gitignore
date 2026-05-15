@@ -1,0 +1,30 @@
+node_modules/
+dist/
+coverage/
+
+# local input data
+data/
+*.osm.pbf
+
+# generated packages and map artifacts
+*.mapzero/
+*.mapzero
+*.gpkg
+*.pmtiles
+*.b3dm
+*.glb
+
+# temporary export/build files
+.mapzero-tmp/
+*.tmp
+*.sqlite
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
