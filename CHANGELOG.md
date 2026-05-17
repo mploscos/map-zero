@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Added Cesium 3D Tiles streaming options for building tilesets and raised the default building cache budget.
+
 ## 0.2.1
 
 - Fixed OpenLayers map-zero z-index handling so map-zero layers behave as a single ordered group and labels no longer render above dynamic application layers.

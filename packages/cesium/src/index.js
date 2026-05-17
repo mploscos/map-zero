@@ -90,7 +90,10 @@ export async function loadMapZeroStyle(input, options = {}) {
  *   opacity?: number,
  *   tilesetOpacity?: number,
  *   buildingsOpacity?: number,
- *   buildings3d?: boolean
+ *   buildings3d?: boolean,
+ *   tilesetMaximumScreenSpaceError?: number,
+ *   tilesetCacheBytes?: number,
+ *   tilesetMaximumCacheOverflowBytes?: number
  * }} options
  * @returns {Promise<{ id: string, manifest: MapZeroManifest, style: Record<string, unknown> | null, tilesets: Record<string, Cesium3DTileset> }>}
  */
@@ -124,7 +127,7 @@ export async function createMapZeroCesiumTilesets(options) {
     const url = resolveRelativeUrl(entry.url, options.manifestUrl);
     const tileset = await Cesium3DTileset.fromUrl(url);
     tagCesiumTileset(tileset, instanceId, entry.layerId);
-    configureCesiumTilesetStreaming(tileset, entry.layerId);
+    configureCesiumTilesetStreaming(tileset, entry.layerId, options);
     configureCesiumTilesetColor(tileset, entry.layerId);
     tileset.style = createMapZeroCesiumStyle(styleJson, {
       layerId: entry.layerId,
@@ -162,6 +165,9 @@ export async function createMapZeroCesiumTilesets(options) {
  *   contextEdgeGuardPixels?: number,
  *   contextWorkerUrl?: string | URL,
  *   buildings3d?: boolean,
+ *   tilesetMaximumScreenSpaceError?: number,
+ *   tilesetCacheBytes?: number,
+ *   tilesetMaximumCacheOverflowBytes?: number,
  *   zoomTo?: boolean,
  *   applyDefaultSceneStyle?: boolean,
  *   sceneStyle?: Record<string, unknown>,
@@ -431,13 +437,14 @@ function shouldCreateContextOverlay(manifest, options) {
 /**
  * @param {Cesium3DTileset} tileset
  * @param {string} layerId
+ * @param {{ tilesetMaximumScreenSpaceError?: number, tilesetCacheBytes?: number, tilesetMaximumCacheOverflowBytes?: number }} options
  */
-function configureCesiumTilesetStreaming(tileset, layerId) {
+function configureCesiumTilesetStreaming(tileset, layerId, options = {}) {
   if (layerId !== 'buildings') {
     return;
   }
 
-  tileset.maximumScreenSpaceError = 24;
+  tileset.maximumScreenSpaceError = finiteNumber(options.tilesetMaximumScreenSpaceError, 24);
   tileset.skipLevelOfDetail = true;
   tileset.baseScreenSpaceError = 1024;
   tileset.skipScreenSpaceErrorFactor = 16;
@@ -450,8 +457,8 @@ function configureCesiumTilesetStreaming(tileset, layerId) {
   tileset.dynamicScreenSpaceErrorFactor = 4;
   tileset.preloadWhenHidden = false;
   tileset.preloadFlightDestinations = false;
-  tileset.cacheBytes = 256 * 1024 * 1024;
-  tileset.maximumCacheOverflowBytes = 128 * 1024 * 1024;
+  tileset.cacheBytes = finiteNumber(options.tilesetCacheBytes, 768 * 1024 * 1024);
+  tileset.maximumCacheOverflowBytes = finiteNumber(options.tilesetMaximumCacheOverflowBytes, 512 * 1024 * 1024);
 }
 
 /**
@@ -566,4 +573,14 @@ function colorFromOption(Cesium, value, fallback) {
  */
 function clamp01(value) {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 1));
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }

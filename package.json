@@ -1,6 +1,6 @@
 {
   "name": "map-zero",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Offline vector map packages from OSM, ready for GeoPackage, PMTiles, and 3D Tiles.",
   "type": "module",
   "license": "MIT",
