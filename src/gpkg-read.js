@@ -24,7 +24,7 @@ const LAYER_ALIASES = {
  *   bbox?: [number, number, number, number],
  *   data?: string,
  *   styles?: Record<string, string>,
- *   layers?: ManifestLayer[]
+ *   layers?: string[]
  * }} Manifest
  *
  * @typedef {Map<string, Map<string, Set<string>>>} HiddenFilters
@@ -64,7 +64,8 @@ export function openGeoPackageReader(options) {
   const statementCache = new Map();
 
   const layerById = new Map();
-  for (const layer of options.manifest.layers ?? []) {
+  for (const layerId of options.manifest.layers ?? []) {
+    const layer = manifestLayer(String(layerId));
     layerById.set(layer.id, layer);
     const alias = LAYER_ALIASES[layer.id];
     if (alias && !layerById.has(alias)) {
@@ -129,6 +130,18 @@ export function openGeoPackageReader(options) {
         .map((row) => rowToFeature(row, String(metadata.geometryColumn)))
         .filter((feature) => feature.geometry !== null);
     }
+  };
+}
+
+/**
+ * @param {string} layerId
+ * @returns {ManifestLayer}
+ */
+function manifestLayer(layerId) {
+  return {
+    id: layerId,
+    table: layerId,
+    style: layerId
   };
 }
 

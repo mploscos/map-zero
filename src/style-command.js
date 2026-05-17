@@ -27,7 +27,7 @@ export async function writePackageStyle(options) {
     throw new Error('manifest must be a mapzero package with layers');
   }
 
-  const selectedLayers = manifest.layers.map((layer) => String(layer.id));
+  const selectedLayers = manifest.layers.map(String);
   const sourceType = options.theme ? 'theme' : 'preset';
   const styleDocument = options.theme
     ? createStyleFromTheme(options.theme, selectedLayers)

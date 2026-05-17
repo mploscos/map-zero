@@ -1,6 +1,7 @@
 import earcut from 'earcut';
 
 import { cleanRing, wgs84SurfaceNormal, wgs84ToEcef } from './extrude.js';
+import { localizeEcefPositions } from './precision.js';
 
 /**
  * @typedef {{
@@ -9,6 +10,7 @@ import { cleanRing, wgs84SurfaceNormal, wgs84ToEcef } from './extrude.js';
  *   indices: Uint16Array,
  *   min: [number, number, number],
  *   max: [number, number, number],
+ *   rtcCenter: [number, number, number],
  *   bbox: [number, number, number, number],
  *   maxHeight: number,
  *   featureCount: number
@@ -176,20 +178,20 @@ function finishMesh(positions, normals, bboxes, height, featureCount, indices = 
     return null;
   }
 
-  const positionArray = new Float32Array(positions);
+  const localized = localizeEcefPositions(positions);
   const normalArray = new Float32Array(normals);
   const indexArray = indices.length > 0
-    ? positionArray.length / 3 > 65535
+    ? localized.positions.length / 3 > 65535
       ? new Uint32Array(indices)
       : new Uint16Array(indices)
     : new Uint16Array(0);
-  const bounds = minMaxVec3(positionArray);
   return {
-    positions: positionArray,
+    positions: localized.positions,
     normals: normalArray,
     indices: indexArray,
-    min: bounds.min,
-    max: bounds.max,
+    min: localized.min,
+    max: localized.max,
+    rtcCenter: localized.rtcCenter,
     bbox: mergeBboxes(bboxes),
     maxHeight: height,
     featureCount
@@ -514,18 +516,4 @@ function mergeBboxes(bboxes) {
     maxLat = Math.max(maxLat, bbox[3]);
   }
   return [minLon, minLat, maxLon, maxLat];
-}
-
-function minMaxVec3(positions) {
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < positions.length; i += 3) {
-    min[0] = Math.min(min[0], positions[i]);
-    min[1] = Math.min(min[1], positions[i + 1]);
-    min[2] = Math.min(min[2], positions[i + 2]);
-    max[0] = Math.max(max[0], positions[i]);
-    max[1] = Math.max(max[1], positions[i + 1]);
-    max[2] = Math.max(max[2], positions[i + 2]);
-  }
-  return { min, max };
 }

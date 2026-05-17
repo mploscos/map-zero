@@ -1,4 +1,12 @@
 import earcut from 'earcut';
+import { localizeEcefPositions } from './precision.js';
+
+/**
+ * Converts 2D building footprints in lon/lat coordinates into localized ECEF
+ * meshes suitable for Cesium 3D Tiles. This module owns the building-specific
+ * extrusion path: roof/bottom triangulation, wall generation, normals, and
+ * WGS84 coordinate conversion.
+ */
 
 const WGS84_A = 6378137.0;
 const WGS84_F = 1 / 298.257223563;
@@ -12,6 +20,7 @@ const WGS84_E2 = WGS84_F * (2 - WGS84_F);
  *   indices: Uint16Array | Uint32Array,
  *   min: [number, number, number],
  *   max: [number, number, number],
+ *   rtcCenter: [number, number, number],
  *   bbox: [number, number, number, number],
  *   maxHeight: number,
  *   featureCount: number
@@ -19,7 +28,11 @@ const WGS84_E2 = WGS84_F * (2 - WGS84_F);
  */
 
 /**
- * Build one merged mesh from building footprints.
+ * Build one localized mesh from many independent building footprints.
+ *
+ * Each footprint is extruded separately, then all vertices are merged before
+ * being shifted around a shared RTC center. The shared center keeps float32
+ * positions precise enough for Cesium at city scale.
  *
  * @param {Footprint[]} footprints
  * @param {{ baseHeight?: number }} [options]
@@ -55,19 +68,19 @@ export function buildMergedExtrudedPolygonMesh(footprints, options = {}) {
     return null;
   }
 
-  const positionArray = new Float32Array(positions);
+  const localized = localizeEcefPositions(positions);
   const normalArray = new Float32Array(normals);
-  const indexArray = positionArray.length / 3 > 65535
+  const indexArray = localized.positions.length / 3 > 65535
     ? new Uint32Array(indices)
     : new Uint16Array(indices);
-  const bounds = minMaxVec3(positionArray);
 
   return {
-    positions: positionArray,
+    positions: localized.positions,
     normals: normalArray,
     indices: indexArray,
-    min: bounds.min,
-    max: bounds.max,
+    min: localized.min,
+    max: localized.max,
+    rtcCenter: localized.rtcCenter,
     bbox: mergeBboxes(bboxes),
     maxHeight,
     featureCount
@@ -75,6 +88,12 @@ export function buildMergedExtrudedPolygonMesh(footprints, options = {}) {
 }
 
 /**
+ * Extrude one footprint ring into roof, bottom, and wall triangles.
+ *
+ * The input ring is expected in lon/lat degrees. Heights are meters above the
+ * ellipsoid. The returned positions remain absolute ECEF numbers; localization
+ * happens in buildMergedExtrudedPolygonMesh.
+ *
  * @param {Array<[number, number]>} ring
  * @param {number} baseHeight
  * @param {number} topHeight
@@ -137,6 +156,9 @@ export function buildExtrudedPolygonMesh(ring, baseHeight, topHeight) {
 }
 
 /**
+ * Normalize a polygon ring to finite lon/lat pairs and remove the repeated
+ * closing coordinate when present.
+ *
  * @param {Array<[number, number]>} ring
  * @returns {Array<[number, number]>}
  */
@@ -162,6 +184,9 @@ export function cleanRing(ring) {
 }
 
 /**
+ * Project lon/lat points around a local centroid into an approximate meter
+ * plane for earcut triangulation.
+ *
  * @param {Array<[number, number]>} points
  * @param {[number, number]} centroid
  * @returns {{ flat: number[] }}
@@ -178,6 +203,8 @@ function projectRing(points, centroid) {
 }
 
 /**
+ * Return a simple arithmetic lon/lat centroid for small local rings.
+ *
  * @param {Array<[number, number]>} points
  * @returns {[number, number]}
  */
@@ -192,6 +219,9 @@ function polygonCentroid(points) {
 }
 
 /**
+ * Compute a lon/lat bbox for a footprint and pad it slightly so child tile
+ * bounding volumes are not exactly coplanar with feature edges.
+ *
  * @param {Array<[number, number]>} points
  * @returns {[number, number, number, number]}
  */
@@ -211,6 +241,8 @@ function polygonBbox(points) {
 }
 
 /**
+ * Merge multiple lon/lat bounding boxes.
+ *
  * @param {Array<[number, number, number, number]>} bboxes
  * @returns {[number, number, number, number]}
  */
@@ -229,31 +261,31 @@ function mergeBboxes(bboxes) {
 }
 
 /**
- * @param {Float32Array} positions
- * @returns {{ min: [number, number, number], max: [number, number, number] }}
+ * Compute a unit normal from three ECEF triangle vertices.
+ *
+ * @param {[number, number, number]} a
+ * @param {[number, number, number]} b
+ * @param {[number, number, number]} c
+ * @returns {[number, number, number]}
  */
-function minMaxVec3(positions) {
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < positions.length; i += 3) {
-    min[0] = Math.min(min[0], positions[i]);
-    min[1] = Math.min(min[1], positions[i + 1]);
-    min[2] = Math.min(min[2], positions[i + 2]);
-    max[0] = Math.max(max[0], positions[i]);
-    max[1] = Math.max(max[1], positions[i + 1]);
-    max[2] = Math.max(max[2], positions[i + 2]);
-  }
-  return { min, max };
-}
-
 function triangleNormal(a, b, c) {
   return normalize(cross(subtract(b, a), subtract(c, a)));
 }
 
+/**
+ * @param {[number, number, number]} a
+ * @param {[number, number, number]} b
+ * @returns {[number, number, number]}
+ */
 function subtract(a, b) {
   return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 }
 
+/**
+ * @param {[number, number, number]} a
+ * @param {[number, number, number]} b
+ * @returns {[number, number, number]}
+ */
 function cross(a, b) {
   return [
     a[1] * b[2] - a[2] * b[1],
@@ -262,6 +294,10 @@ function cross(a, b) {
   ];
 }
 
+/**
+ * @param {[number, number, number]} vector
+ * @returns {[number, number, number]}
+ */
 function normalize(vector) {
   const length = Math.hypot(vector[0], vector[1], vector[2]);
   if (!Number.isFinite(length) || length === 0) {
@@ -270,6 +306,13 @@ function normalize(vector) {
   return [vector[0] / length, vector[1] / length, vector[2] / length];
 }
 
+/**
+ * Return the geodetic up vector for a lon/lat coordinate.
+ *
+ * @param {number} lonDeg
+ * @param {number} latDeg
+ * @returns {[number, number, number]}
+ */
 export function wgs84SurfaceNormal(lonDeg, latDeg) {
   const lonRad = degToRad(lonDeg);
   const latRad = degToRad(latDeg);
@@ -281,6 +324,14 @@ export function wgs84SurfaceNormal(lonDeg, latDeg) {
   ];
 }
 
+/**
+ * Convert lon/lat/height to Earth-Centered, Earth-Fixed coordinates.
+ *
+ * @param {number} lonDeg
+ * @param {number} latDeg
+ * @param {number} h
+ * @returns {[number, number, number]}
+ */
 export function wgs84ToEcef(lonDeg, latDeg, h) {
   const lonRad = degToRad(lonDeg);
   const latRad = degToRad(latDeg);
@@ -296,6 +347,10 @@ export function wgs84ToEcef(lonDeg, latDeg, h) {
   ];
 }
 
+/**
+ * @param {number} value
+ * @returns {number}
+ */
 function degToRad(value) {
   return value * Math.PI / 180;
 }

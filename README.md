@@ -54,6 +54,16 @@ Build a package:
 node src/cli.js build ./data/madrid.osm.pbf --out ./madrid.mapzero
 ```
 
+Or build the complete static package directly from a bbox:
+
+```bash
+node src/cli.js from-bbox \
+  --bbox -3.9,40.3,-3.5,40.6 \
+  --out ./madrid.mapzero
+```
+
+`from-bbox` downloads and caches the smallest Geofabrik `.osm.pbf` extract that fully contains the bbox, then runs `build`, `pmtiles`, `3dtiles`, and `package`. The source PBF cache defaults to `~/.cache/map-zero/osm`.
+
 Serve it:
 
 ```bash
@@ -118,7 +128,7 @@ Export Cesium-ready 3D Tiles:
 node src/cli.js 3dtiles ./madrid.mapzero
 ```
 
-Buildings are extruded. Roads, railways, boundaries, water, landuse, and AIP/aeronautical features are exported as flat cartographic meshes. The Cesium viewer is available at:
+Buildings are extruded into streamed Cesium tiles. The default subdivision is tuned for dense cities like Madrid; use `--max-depth` and `--max-features` only when you need coarser or finer tiles. Roads, railways, boundaries, water, landuse, and AIP/aeronautical features are exported as flat cartographic meshes when requested with `--layers`. The Cesium viewer is available at:
 
 ```text
 http://localhost:8080/cesium
@@ -126,7 +136,26 @@ http://localhost:8080/cesium
 
 3D Tiles are also static files. Once exported, they do not need the map-zero Node server; Cesium can load them from any normal static web server.
 
+The Cesium PMTiles context overlay uses a module worker plus `OffscreenCanvas`;
+there is no main-thread rasterization fallback.
+
 Use `map-zero serve` to preview the Cesium output locally; use static hosting to publish the exported `3dtiles/` folder.
+
+## Portable ZIP
+
+Create a zip ready to copy into an app:
+
+```bash
+node src/cli.js package ./madrid.mapzero
+```
+
+By default this writes `madrid.mapzero.zip` next to the package and includes `manifest.json`, the styles referenced by the manifest, `tiles.pmtiles`, and `3dtiles/`. The source GeoPackage is excluded because static OpenLayers/Cesium consumers do not need it.
+
+Include `data.gpkg` explicitly when you want to keep the source package data in the archive:
+
+```bash
+node src/cli.js package ./madrid.mapzero --include-gpkg
+```
 
 ## OpenLayers Usage
 
@@ -168,7 +197,7 @@ const viewer = new Viewer('cesiumContainer');
 const controller = await addMapZeroToCesium(viewer, {
   id: 'huelva',
   manifestUrl: './huelva.mapzero/manifest.json',
-  style: 'cesium'
+  style: 'default'
 });
 
 controller.setOpacity('buildings', 0.8);

@@ -19,13 +19,21 @@ import {
 } from './gpkg-buildings.js';
 import { buildContentNode, buildTileset } from './tileset.js';
 
+/**
+ * Orchestrates conversion from a .mapzero package into static Cesium 3D Tiles.
+ *
+ * The exporter reads GeoPackage data, subdivides each layer into manageable
+ * geographic leaves, builds layer-specific meshes, wraps those meshes as GLB
+ * and b3dm files, then updates manifest.json with Cesium metadata.
+ */
+
 const DEFAULT_BUILDING_HEIGHT = 9;
 const DEFAULT_MAX_FEATURES = 2500;
 const DEFAULT_MAX_DEPTH = 4;
+const DEFAULT_3D_LAYERS = ['buildings'];
 const SUPPORTED_3D_LAYERS = ['buildings', 'landuse', 'water', 'aip', 'railways', 'roads', 'boundaries'];
 const LAYER_ALIASES = {
-  aviation: 'aip',
-  aip: 'aviation'
+  aviation: 'aip'
 };
 
 /**
@@ -149,7 +157,7 @@ export async function export3dTiles(options) {
       throw new Error('no 3D Tiles were generated');
     }
 
-    await updateManifestCesium(manifestPath, manifest, exportedTilesets, /** @type {[number, number, number, number]} */ (manifest.bbox));
+    await updateManifest3dTiles(manifestPath, manifest, exportedTilesets, /** @type {[number, number, number, number]} */ (manifest.bbox));
     options.onProgress?.({
       phase: 'done',
       leafCount: totalLeaves,
@@ -171,6 +179,15 @@ export async function export3dTiles(options) {
   }
 }
 
+/**
+ * Export extruded building footprints as the main 3D volume layer.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Record<string, any>} manifest
+ * @param {string} outRoot
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportBuildingLayer(db, manifest, outRoot, options) {
   const metadata = readBuildingsMetadata(db, /** @type {[number, number, number, number]} */ (manifest.bbox));
   const featureCount = countBuildings(db, metadata, metadata.bbox);
@@ -195,6 +212,18 @@ async function exportBuildingLayer(db, manifest, outRoot, options) {
   }, options);
 }
 
+/**
+ * Export layers that may contain polygons, lines, and points as a pair of flat
+ * surface meshes: polygon fill plus offset linework. AIP/aviation also converts
+ * selected point features into small disks so they remain visible in 3D.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Record<string, any>} manifest
+ * @param {string} outRoot
+ * @param {string} layerId
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportMixedSurfaceLayer(db, manifest, outRoot, layerId, options) {
   let metadata;
   try {
@@ -228,7 +257,7 @@ async function exportMixedSurfaceLayer(db, manifest, outRoot, layerId, options) 
       const lines = linesFromFeatures([...lineFeatures, ...outlineFeatures]);
       const lineMesh = await buildClipperLineSurfaceMesh(lines, {
         widthMeters: lineWidthMeters(layerId, options.style),
-        height: isAipLayer(layerId) ? 1.4 : 1.2,
+        height: lineSurfaceHeight(layerId),
         scale: 100,
         arcToleranceMeters: isAipLayer(layerId) ? 0.35 : 0.25,
         cleanDistanceMeters: 0.05,
@@ -237,7 +266,7 @@ async function exportMixedSurfaceLayer(db, manifest, outRoot, layerId, options) 
       const polygonMesh = layerId === 'boundaries'
         ? null
         : buildPolygonSurfaceMesh([...polygonFeatures, ...pointFeatures], {
-            height: isAipLayer(layerId) ? 1.1 : 0.25
+            height: polygonSurfaceHeight(layerId)
           });
 
       return {
@@ -252,6 +281,16 @@ async function exportMixedSurfaceLayer(db, manifest, outRoot, layerId, options) 
   }, options);
 }
 
+/**
+ * Export polygon/point-oriented layers with the generic flat mesh builder.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Record<string, any>} manifest
+ * @param {string} outRoot
+ * @param {string} layerId
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportFlatLayer(db, manifest, outRoot, layerId, options) {
   let metadata;
   try {
@@ -276,7 +315,8 @@ async function exportFlatLayer(db, manifest, outRoot, layerId, options) {
       });
       return {
         mesh: buildFlatLayerMesh(layerId, features, {
-          lineWidthMeters: lineWidthMeters(layerId, options.style)
+          lineWidthMeters: lineWidthMeters(layerId, options.style),
+          height: polygonSurfaceHeight(layerId)
         }),
         featureCount: features.length,
         skipped: 0
@@ -285,6 +325,15 @@ async function exportFlatLayer(db, manifest, outRoot, layerId, options) {
   }, options);
 }
 
+/**
+ * Export roads as dissolved offset surfaces rather than simple line ribbons.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Record<string, any>} manifest
+ * @param {string} outRoot
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportRoadLayer(db, manifest, outRoot, options) {
   let metadata;
   try {
@@ -311,7 +360,7 @@ async function exportRoadLayer(db, manifest, outRoot, options) {
       const bodyWidth = roadBodyWidthMeters(options.style);
       const body = await buildClipperLineSurfaceMesh(lines, {
         widthMeters: bodyWidth,
-        height: 0.9,
+        height: lineSurfaceHeight('roads'),
         scale: 100,
         arcToleranceMeters: 0.45,
         cleanDistanceMeters: 0.05,
@@ -327,6 +376,16 @@ async function exportRoadLayer(db, manifest, outRoot, options) {
   }, options);
 }
 
+/**
+ * Export a line-only layer, currently railways, through the Clipper surface path.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Record<string, any>} manifest
+ * @param {string} outRoot
+ * @param {string} layerId
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportLineSurfaceLayer(db, manifest, outRoot, layerId, options) {
   let metadata;
   try {
@@ -352,7 +411,7 @@ async function exportLineSurfaceLayer(db, manifest, outRoot, layerId, options) {
       const lines = linesFromFeatures(features);
       const mesh = await buildClipperLineSurfaceMesh(lines, {
         widthMeters: lineWidthMeters(layerId, options.style),
-        height: layerId === 'railways' ? 0.82 : 0.7,
+        height: lineSurfaceHeight(layerId),
         scale: 100,
         arcToleranceMeters: layerId === 'railways' ? 0.4 : 0.25,
         cleanDistanceMeters: 0.05,
@@ -368,6 +427,18 @@ async function exportLineSurfaceLayer(db, manifest, outRoot, layerId, options) {
   }, options);
 }
 
+/**
+ * Write all leaf meshes for one layer as b3dm files and assemble tileset.json.
+ *
+ * @param {string} layerId
+ * @param {[number, number, number, number]} bbox
+ * @param {Array<{ bbox: [number, number, number, number], count: number }>} leaves
+ * @param {string} outRoot
+ * @param {Record<string, any> | null} style
+ * @param {{ readMesh?: Function, readMeshes?: Function }} source
+ * @param {any} options
+ * @returns {Promise<any>}
+ */
 async function exportLayerTiles(layerId, bbox, leaves, outRoot, style, source, options) {
   const outDir = join(outRoot, layerId);
   const tilesDir = join(outDir, 'tiles');
@@ -395,9 +466,10 @@ async function exportLayerTiles(layerId, bbox, leaves, outRoot, style, source, o
       const mesh = entry.mesh;
       const glb = buildGlbFromMesh(mesh, {
         color: entry.color ?? colorFactorForLayer(style, layerId),
-        generator: `map-zero 3dtiles ${layerId}${entry.id ? ` ${entry.id}` : ''}`
+        generator: `map-zero 3dtiles ${layerId}${entry.id ? ` ${entry.id}` : ''}`,
+        ...glbOptionsForLayer(layerId)
       });
-      const b3dm = buildB3dm(glb);
+      const b3dm = buildB3dm(glb, { rtcCenter: mesh.rtcCenter });
       const tileName = entry.id === 'main'
         ? `tile-${writtenTiles}.b3dm`
         : `tile-${writtenTiles}-${entry.id}.b3dm`;
@@ -446,10 +518,12 @@ async function exportLayerTiles(layerId, bbox, leaves, outRoot, style, source, o
 }
 
 /**
+ * Recursively split a layer bbox until each leaf is small enough to mesh.
+ *
  * @param {import('better-sqlite3').Database} db
  * @param {any} metadata
  * @param {[number, number, number, number]} bbox
- * @param {{ maxFeatures: number, maxDepth: number }} options
+ * @param {{ maxFeatures: number, maxDepth: number, count: Function }} options
  * @returns {Array<{ bbox: [number, number, number, number], count: number }>}
  */
 function buildLeafPlan(db, metadata, bbox, options) {
@@ -479,6 +553,8 @@ function buildLeafPlan(db, metadata, bbox, options) {
 }
 
 /**
+ * Split a geographic bbox into four quadrants.
+ *
  * @param {[number, number, number, number]} bbox
  * @returns {Array<[number, number, number, number]>}
  */
@@ -495,6 +571,8 @@ function splitBbox(bbox) {
 }
 
 /**
+ * Merge multiple lon/lat bounding boxes.
+ *
  * @param {Array<[number, number, number, number]>} bboxes
  * @returns {[number, number, number, number] | null}
  */
@@ -517,12 +595,14 @@ function mergeBboxes(bboxes) {
 }
 
 /**
+ * Normalize CLI layer input and reject unsupported 3D export layers.
+ *
  * @param {string | undefined} value
  * @returns {string[]}
  */
 function normalizeLayers(value) {
   if (!value) {
-    return [...SUPPORTED_3D_LAYERS];
+    return [...DEFAULT_3D_LAYERS];
   }
   const layers = Array.isArray(value) ? value : String(value).split(',');
   const normalized = layers.map((layer) => normalizeLayerId(String(layer).trim())).filter(Boolean);
@@ -531,10 +611,12 @@ function normalizeLayers(value) {
   if (unsupported.length > 0) {
     throw new Error(`unsupported 3D layer(s): ${unsupported.join(', ')}`);
   }
-  return normalized.length > 0 ? normalized : [...SUPPORTED_3D_LAYERS];
+  return normalized.length > 0 ? normalized : [...DEFAULT_3D_LAYERS];
 }
 
 /**
+ * Map user-facing layer aliases to canonical exporter layer IDs.
+ *
  * @param {string} layerId
  * @returns {string}
  */
@@ -543,6 +625,8 @@ function normalizeLayerId(layerId) {
 }
 
 /**
+ * Return whether a layer ID represents aeronautical data.
+ *
  * @param {string} layerId
  * @returns {boolean}
  */
@@ -551,6 +635,8 @@ function isAipLayer(layerId) {
 }
 
 /**
+ * Validate the manifest fields required by static 3D Tiles export.
+ *
  * @param {Record<string, unknown>} manifest
  */
 function validateManifest(manifest) {
@@ -564,28 +650,35 @@ function validateManifest(manifest) {
 }
 
 /**
+ * Persist the 3D Tiles entry back to manifest.json.
+ *
  * @param {string} manifestPath
  * @param {Record<string, any>} manifest
  * @param {Record<string, string>} tilesets
+ * @param {[number, number, number, number]} bbox
  */
-async function updateManifestCesium(manifestPath, manifest, tilesets, bbox) {
-  manifest.cesium = {
-    ...(manifest.cesium ?? {}),
-    bbox,
-    focusBbox: bbox,
-    tilesets
-  };
+async function updateManifest3dTiles(manifestPath, manifest, tilesets, bbox) {
+  delete manifest.cesium;
   const firstEntry = Object.entries(tilesets)[0];
   manifest.tiles3d = {
     format: '3dtiles',
     url: firstEntry?.[1],
-    layers: Object.keys(tilesets),
-    bbox,
-    focusBbox: bbox
+    layers: Object.keys(tilesets)
   };
+  if (!sameBbox(bbox, manifest.bbox)) {
+    manifest.tiles3d.bbox = bbox;
+  }
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
+/**
+ * Load the package default style. Missing or invalid styles are treated as null
+ * so exports can still complete with fallback colors and widths.
+ *
+ * @param {string} packageDir
+ * @param {Record<string, any>} manifest
+ * @returns {Promise<Record<string, any> | null>}
+ */
 async function readDefaultStyle(packageDir, manifest) {
   const styleUrl = manifest.styles?.default;
   if (typeof styleUrl !== 'string') {
@@ -599,15 +692,33 @@ async function readDefaultStyle(packageDir, manifest) {
   }
 }
 
+/**
+ * Convert a map-zero style rule to a glTF baseColorFactor.
+ *
+ * @param {Record<string, any> | null} style
+ * @param {string} layerId
+ * @returns {[number, number, number, number]}
+ */
 function colorFactorForLayer(style, layerId) {
-  const rule = style?.layers?.[layerId] ?? style?.layers?.[LAYER_ALIASES[layerId]] ?? {};
+  const rule = style?.layers?.[layerId] ?? style?.layers?.[styleLayerAlias(layerId)] ?? {};
+  if (layerId === 'buildings') {
+    const color = buildingSolidColor(rule);
+    return [...hexToRgb(color), 1];
+  }
   const color = rule.fill ?? rule.body?.color ?? rule.stroke ?? '#00ffff';
   const opacity = Number(rule.fillOpacity ?? rule.body?.opacity ?? rule.strokeOpacity ?? 0.8);
   return [...hexToRgb(color), Math.max(0.05, Math.min(1, Number.isFinite(opacity) ? opacity : 0.8))];
 }
 
+/**
+ * Convert 2D style stroke/body width to an approximate world-space line width.
+ *
+ * @param {string} layerId
+ * @param {Record<string, any> | null} style
+ * @returns {number}
+ */
 function lineWidthMeters(layerId, style) {
-  const rule = style?.layers?.[layerId] ?? style?.layers?.[LAYER_ALIASES[layerId]] ?? {};
+  const rule = style?.layers?.[layerId] ?? style?.layers?.[styleLayerAlias(layerId)] ?? {};
   const width = Number(rule.body?.width ?? rule.strokeWidth);
   if (Number.isFinite(width) && width > 0) {
     return Math.max(1.5, width * 2.2);
@@ -619,11 +730,64 @@ function lineWidthMeters(layerId, style) {
   return 2;
 }
 
+/**
+ * Return the alternate style key for layers whose data and style IDs differ.
+ *
+ * @param {string} layerId
+ * @returns {string}
+ */
+function styleLayerAlias(layerId) {
+  if (layerId === 'aip') return 'aviation';
+  if (layerId === 'aviation') return 'aip';
+  return LAYER_ALIASES[layerId] ?? layerId;
+}
+
+/**
+ * Roads use their line width as the full surface body width.
+ *
+ * @param {Record<string, any> | null} style
+ * @returns {number}
+ */
 function roadBodyWidthMeters(style) {
   const width = lineWidthMeters('roads', style);
   return Math.max(5, width);
 }
 
+/**
+ * Assign z offsets for flat polygon surfaces to reduce z-fighting between
+ * layers in Cesium.
+ *
+ * @param {string} layerId
+ * @returns {number}
+ */
+function polygonSurfaceHeight(layerId) {
+  if (isAipLayer(layerId)) return 8;
+  if (layerId === 'water') return 4;
+  if (layerId === 'landuse') return 2;
+  return 3;
+}
+
+/**
+ * Assign z offsets for line surfaces so roads, railways, boundaries, and AIP
+ * remain visually separated.
+ *
+ * @param {string} layerId
+ * @returns {number}
+ */
+function lineSurfaceHeight(layerId) {
+  if (isAipLayer(layerId)) return 9;
+  if (layerId === 'roads') return 10;
+  if (layerId === 'railways') return 11;
+  if (layerId === 'boundaries') return 12;
+  return 10;
+}
+
+/**
+ * Extract all valid line coordinate arrays from a feature list.
+ *
+ * @param {Array<{ geometry?: any }>} features
+ * @returns {Array<Array<[number, number]>>}
+ */
 function linesFromFeatures(features) {
   const lines = [];
   for (const feature of features) {
@@ -632,6 +796,12 @@ function linesFromFeatures(features) {
   return lines.map(cleanLine).filter((line) => line.length >= 2);
 }
 
+/**
+ * Extract line coordinate arrays from GeoJSON LineString/MultiLineString.
+ *
+ * @param {any} geometry
+ * @returns {Array<Array<[number, number]>>}
+ */
 function linesFromGeometry(geometry) {
   if (geometry?.type === 'LineString' && Array.isArray(geometry.coordinates)) {
     return [geometry.coordinates];
@@ -642,20 +812,40 @@ function linesFromGeometry(geometry) {
   return [];
 }
 
+/**
+ * Normalize a line to finite lon/lat pairs.
+ *
+ * @param {Array<[number, number]>} line
+ * @returns {Array<[number, number]>}
+ */
 function cleanLine(line) {
   return line
     .map((point) => [Number(point?.[0]), Number(point?.[1])])
     .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
 }
 
+/**
+ * @param {{ geometry?: any }} feature
+ * @returns {boolean}
+ */
 function hasLineGeometry(feature) {
   return feature.geometry?.type === 'LineString' || feature.geometry?.type === 'MultiLineString';
 }
 
+/**
+ * @param {{ geometry?: any }} feature
+ * @returns {boolean}
+ */
 function hasPolygonGeometry(feature) {
   return feature.geometry?.type === 'Polygon' || feature.geometry?.type === 'MultiPolygon';
 }
 
+/**
+ * Decide which aviation points should become visible 3D disks.
+ *
+ * @param {{ geometry?: any, properties?: Record<string, unknown> }} feature
+ * @returns {boolean}
+ */
 function isVisibleAviationPointFeature(feature) {
   if (feature.geometry?.type !== 'Point' && feature.geometry?.type !== 'MultiPoint') {
     return false;
@@ -664,6 +854,14 @@ function isVisibleAviationPointFeature(feature) {
   return aeroway === 'helipad' || aeroway === 'aerodrome';
 }
 
+/**
+ * Convert point features into small polygon disks for flat 3D export.
+ *
+ * @param {Array<{ geometry?: any, properties?: Record<string, unknown> }>} features
+ * @param {number} radiusMeters
+ * @param {number} segments
+ * @returns {Array<{ type: 'Feature', properties: any, geometry: { type: 'Polygon', coordinates: Array<Array<[number, number]>> } }>}
+ */
 function pointDiskFeatures(features, radiusMeters, segments) {
   const out = [];
   for (const feature of features) {
@@ -684,6 +882,12 @@ function pointDiskFeatures(features, radiusMeters, segments) {
   return out;
 }
 
+/**
+ * Extract point coordinate arrays from GeoJSON Point/MultiPoint.
+ *
+ * @param {any} geometry
+ * @returns {Array<[number, number]>}
+ */
 function pointsFromGeometry(geometry) {
   if (geometry?.type === 'Point' && Array.isArray(geometry.coordinates)) {
     return [geometry.coordinates];
@@ -694,6 +898,14 @@ function pointsFromGeometry(geometry) {
   return [];
 }
 
+/**
+ * Approximate a lon/lat point as a small circular polygon in local meters.
+ *
+ * @param {[number, number]} point
+ * @param {number} radiusMeters
+ * @param {number} segments
+ * @returns {Array<[number, number]> | null}
+ */
 function pointDiskPolygon(point, radiusMeters, segments) {
   const lon = Number(point?.[0]);
   const lat = Number(point?.[1]);
@@ -715,6 +927,12 @@ function pointDiskPolygon(point, radiusMeters, segments) {
   return ring;
 }
 
+/**
+ * Convert a CSS hex color to normalized RGB floats.
+ *
+ * @param {string} value
+ * @returns {[number, number, number]}
+ */
 function hexToRgb(value) {
   const color = /^#?([0-9a-f]{6})$/i.exec(String(value));
   const hex = color?.[1] ?? '00ffff';
@@ -723,6 +941,48 @@ function hexToRgb(value) {
     Number.parseInt(hex.slice(2, 4), 16) / 255,
     Number.parseInt(hex.slice(4, 6), 16) / 255
   ];
+}
+
+/**
+ * Pick the stable 3D building color. A style can override it with
+ * cesium.color, tiles3d.color, or material.color.
+ *
+ * @param {Record<string, any>} rule
+ * @returns {string}
+ */
+function buildingSolidColor(rule) {
+  const explicit = rule?.cesium?.color ?? rule?.tiles3d?.color ?? rule?.material?.color;
+  if (typeof explicit === 'string' && isHexColor(explicit)) {
+    return explicit;
+  }
+  return '#8a3f82';
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(value);
+}
+
+/**
+ * Return GLB material/attribute options for the layer.
+ *
+ * Buildings carry normals and use lit, double-sided materials so blocks read as
+ * volumes in Cesium. Flat cartographic layers stay unlit and smaller.
+ *
+ * @param {string} layerId
+ * @returns {{ includeNormals: boolean, quantizeNormals: boolean, doubleSided: boolean, unlit: boolean }}
+ */
+function glbOptionsForLayer(layerId) {
+  const buildings = layerId === 'buildings';
+  return {
+    includeNormals: buildings,
+    quantizeNormals: buildings,
+    doubleSided: buildings,
+    unlit: !buildings
+  };
 }
 
 /**
@@ -765,4 +1025,17 @@ function validBbox(value) {
     value.every((part) => Number.isFinite(Number(part))) &&
     Number(value[0]) < Number(value[2]) &&
     Number(value[1]) < Number(value[3]);
+}
+
+/**
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {boolean}
+ */
+function sameBbox(a, b) {
+  return Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === 4 &&
+    b.length === 4 &&
+    a.every((value, index) => Math.abs(Number(value) - Number(b[index])) < 1e-9);
 }

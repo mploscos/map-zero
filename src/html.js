@@ -138,8 +138,6 @@ export function createViewerHtml(options = {}) {
         titleEl.textContent = manifest.name || 'map-zero';
 
         const bbox = normalizeBbox(manifest.bbox);
-        const tiles3dBbox = normalizeBbox(manifest.tiles3d?.bbox);
-        const focusBbox = normalizeBbox(manifest.tiles3d?.focusBbox);
         const initialView = readInitialView(bbox);
         const map = new OLMap({
           target: 'map',
@@ -171,15 +169,15 @@ export function createViewerHtml(options = {}) {
 
         document.body.style.background = controller.style.background || '#000000';
 
-        for (const layer of controller.manifest.layers || []) {
-          addLayerToggle(layer, controller);
+        for (const layerId of controller.manifest.layers || []) {
+          addLayerToggle(String(layerId), controller);
         }
 
         updateStatus();
       }
 
-      function addLayerToggle(layer, controller) {
-        const rule = controller.style.layers?.[layer.style || layer.id] || {};
+      function addLayerToggle(layerId, controller) {
+        const rule = controller.style.layers?.[layerId] || {};
         const label = document.createElement('label');
         label.className = 'layer-row';
 
@@ -187,15 +185,15 @@ export function createViewerHtml(options = {}) {
         input.type = 'checkbox';
         input.checked = rule.visible !== false;
         input.addEventListener('change', () => {
-          controller.setVisible(layer.id, input.checked);
-          layerStatus.set(layer.id, input.checked ? 'visible' : 'hidden');
+          controller.setVisible(layerId, input.checked);
+          layerStatus.set(layerId, input.checked ? 'visible' : 'hidden');
           updateStatus();
         });
 
         const text = document.createElement('span');
-        text.textContent = layer.id;
+        text.textContent = layerId;
 
-        layerStatus.set(layer.id, input.checked ? 'visible' : 'hidden');
+        layerStatus.set(layerId, input.checked ? 'visible' : 'hidden');
         label.append(input, text);
         layersEl.append(label);
       }
@@ -291,6 +289,15 @@ export function createCesiumViewerHtml(options = {}) {
     <title>map-zero Cesium</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Cesium.js"></script>
     <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Widgets/widgets.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "ol/": "https://esm.sh/ol@10.9.0/",
+          "pmtiles": "/vendor/pmtiles.js",
+          "fflate": "/vendor/fflate.js"
+        }
+      }
+    </script>
     <style>
       html,
       body {
@@ -413,6 +420,7 @@ export function createCesiumViewerHtml(options = {}) {
       const titleEl = document.getElementById('title');
       const layerControlsEl = document.getElementById('layerControls');
       const opacityEl = document.getElementById('layerOpacity');
+      const params = new URLSearchParams(globalThis.location.search);
 
       start().catch((error) => {
         statusEl.textContent = error.message;
@@ -426,17 +434,16 @@ export function createCesiumViewerHtml(options = {}) {
         statusEl.textContent = 'Loading manifest';
         const manifest = await loadMapZeroManifest('/manifest.json');
         titleEl.textContent = (manifest.name || 'map-zero') + ' 3D';
-        if (!manifest.tiles3d && !manifest.cesium?.tilesets) {
+        if (!manifest.tiles3d) {
           throw new Error('This package does not define manifest.tiles3d. Run: map-zero 3dtiles <package.mapzero>');
         }
-        const sourceLabel = manifest.tiles3d?.url || manifest.cesium?.tilesets?.buildings || '3dtiles';
+        const sourceLabel = manifest.tiles3d?.url || '3dtiles';
 
         statusEl.textContent = 'Creating Cesium viewer';
         const Cesium = globalThis.Cesium;
         Cesium.Ion.defaultAccessToken = '';
         const bbox = normalizeBbox(manifest.bbox);
-        const tiles3dBbox = normalizeBbox(manifest.tiles3d?.bbox || manifest.cesium?.bbox || manifest.bbox);
-        const focusBbox = normalizeBbox(manifest.tiles3d?.focusBbox || manifest.cesium?.focusBbox);
+        const tiles3dBbox = normalizeBbox(manifest.tiles3d?.bbox || manifest.bbox);
         const viewer = new Cesium.Viewer('cesiumContainer', {
           animation: false,
           baseLayer: false,
@@ -451,21 +458,25 @@ export function createCesiumViewerHtml(options = {}) {
           timeline: false,
           terrainProvider: new Cesium.EllipsoidTerrainProvider()
         });
+        globalThis.viewer = viewer;
         viewer.imageryLayers.removeAll();
 
         statusEl.textContent = 'Loading 3D Tileset';
         const controller = await addMapZeroToCesium(viewer, {
           manifestUrl: '/manifest.json',
-          style: 'cesium',
+          style: 'default',
           opacity: Number(opacityEl.value),
+          contextOverlay: params.get('overlay') !== '0',
+          contextOverzoomLevels: params.has('overzoom') ? Number(params.get('overzoom')) : undefined,
           zoomTo: false,
           applyDefaultSceneStyle: true
         });
+        globalThis.mapZeroController = controller;
 
         statusEl.textContent = 'Positioning camera';
         const firstTileset = Object.values(controller.tilesets)[0];
-        if (focusBbox || tiles3dBbox) {
-          const targetBbox = focusBbox || tiles3dBbox;
+        if (tiles3dBbox) {
+          const targetBbox = tiles3dBbox;
           const centerLon = (targetBbox[0] + targetBbox[2]) / 2;
           const centerLat = (targetBbox[1] + targetBbox[3]) / 2;
           const spanMeters = bboxDiagonalMeters(targetBbox);

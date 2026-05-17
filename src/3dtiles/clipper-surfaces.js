@@ -7,6 +7,14 @@ import {
 } from 'js-angusj-clipper';
 
 import { wgs84SurfaceNormal, wgs84ToEcef } from './extrude.js';
+import { localizeEcefPositions } from './precision.js';
+
+/**
+ * Builds flat elevated cartographic surfaces from linework by offsetting lines
+ * with Clipper, dissolving joins/caps, and triangulating the resulting polygons.
+ * This path is used for roads, railways, boundaries, and aviation linework where
+ * hand-built ribbons produced visible join artifacts.
+ */
 
 const DEFAULT_SCALE = 100;
 const DEFAULT_ARC_TOLERANCE_METERS = 0.25;
@@ -92,6 +100,11 @@ export async function buildClipperLineSurfaceMesh(lines, options) {
   return buildSurfaceMeshFromClipperPolygons(polygons, projection, scale, options.height ?? 1);
 }
 
+/**
+ * Lazily load the Clipper WASM/ASM implementation once per process.
+ *
+ * @returns {Promise<any>}
+ */
 function getClipper() {
   clipperPromise ??= loadNativeClipperLibInstanceAsync(
     NativeClipperLibRequestedFormat.WasmWithAsmJsFallback
@@ -99,6 +112,12 @@ function getClipper() {
   return clipperPromise;
 }
 
+/**
+ * Flatten a Clipper PolyTree into polygon rings, preserving first-level holes.
+ *
+ * @param {any} polyTree
+ * @returns {Array<Array<Array<{ x: number, y: number }>>>}
+ */
 function collectPolyTreePolygons(polyTree) {
   const polygons = [];
   for (const child of polyTree.childs) {
@@ -107,6 +126,12 @@ function collectPolyTreePolygons(polyTree) {
   return polygons;
 }
 
+/**
+ * Recursively collect closed non-hole nodes and their hole contours.
+ *
+ * @param {any} node
+ * @param {Array<Array<Array<{ x: number, y: number }>>>} polygons
+ */
 function collectNode(node, polygons) {
   if (node.isOpen) return;
   if (!node.isHole) {
@@ -124,6 +149,15 @@ function collectNode(node, polygons) {
   }
 }
 
+/**
+ * Convert integer Clipper polygon rings back into localized ECEF mesh data.
+ *
+ * @param {Array<Array<Array<{ x: number, y: number }>>>} polygons
+ * @param {{ origin: [number, number], metersPerLon: number, metersPerLat: number }} projection
+ * @param {number} scale
+ * @param {number} height
+ * @returns {import('./extrude.js').ExtrudedMesh | null}
+ */
 function buildSurfaceMeshFromClipperPolygons(polygons, projection, scale, height) {
   const positions = [];
   const normals = [];
@@ -170,24 +204,32 @@ function buildSurfaceMeshFromClipperPolygons(polygons, projection, scale, height
   }
 
   if (positions.length === 0 || featureCount === 0) return null;
-  const positionArray = new Float32Array(positions);
+  const localized = localizeEcefPositions(positions);
   const normalArray = new Float32Array(normals);
-  const indexArray = positionArray.length / 3 > 65535
+  const indexArray = localized.positions.length / 3 > 65535
     ? new Uint32Array(indices)
     : new Uint16Array(indices);
-  const bounds = minMaxVec3(positionArray);
   return {
-    positions: positionArray,
+    positions: localized.positions,
     normals: normalArray,
     indices: indexArray,
-    min: bounds.min,
-    max: bounds.max,
+    min: localized.min,
+    max: localized.max,
+    rtcCenter: localized.rtcCenter,
     bbox: mergeBboxes(bboxes),
     maxHeight: height,
     featureCount
   };
 }
 
+/**
+ * Convert a Clipper path to local meter coordinates and remove duplicate close
+ * points before triangulation.
+ *
+ * @param {Array<{ x: number, y: number }>} path
+ * @param {number} scale
+ * @returns {Array<[number, number]>}
+ */
 function cleanPathRing(path, scale) {
   const ring = [];
   for (const point of path) {
@@ -203,12 +245,25 @@ function cleanPathRing(path, scale) {
   return ring;
 }
 
+/**
+ * Normalize a lon/lat line to finite coordinate pairs.
+ *
+ * @param {Array<[number, number]>} line
+ * @returns {Array<[number, number]>}
+ */
 function cleanLine(line) {
   return line
     .map((point) => [Number(point?.[0]), Number(point?.[1])])
     .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
 }
 
+/**
+ * Drop adjacent projected points that are closer than minDistance meters.
+ *
+ * @param {Array<[number, number]>} points
+ * @param {number} minDistance
+ * @returns {Array<[number, number]>}
+ */
 function removeRedundantLocalPoints(points, minDistance) {
   const out = [];
   for (const point of points) {
@@ -220,6 +275,12 @@ function removeRedundantLocalPoints(points, minDistance) {
   return out;
 }
 
+/**
+ * Create a local lon/lat <-> meter projection centered on the data extent.
+ *
+ * @param {Array<[number, number]>} points
+ * @returns {{ origin: [number, number], metersPerLon: number, metersPerLat: number }}
+ */
 function createLocalProjection(points) {
   const origin = polygonCentroid(points);
   const meanLat = origin[1] * Math.PI / 180;
@@ -230,6 +291,13 @@ function createLocalProjection(points) {
   };
 }
 
+/**
+ * Project one lon/lat point into local meters.
+ *
+ * @param {[number, number]} point
+ * @param {{ origin: [number, number], metersPerLon: number, metersPerLat: number }} projection
+ * @returns {[number, number]}
+ */
 function projectPoint(point, projection) {
   return [
     (point[0] - projection.origin[0]) * projection.metersPerLon,
@@ -237,6 +305,13 @@ function projectPoint(point, projection) {
   ];
 }
 
+/**
+ * Convert local meters back to lon/lat.
+ *
+ * @param {[number, number]} point
+ * @param {{ origin: [number, number], metersPerLon: number, metersPerLat: number }} projection
+ * @returns {[number, number]}
+ */
 function unprojectPoint(point, projection) {
   return [
     projection.origin[0] + point[0] / projection.metersPerLon,
@@ -244,6 +319,13 @@ function unprojectPoint(point, projection) {
   ];
 }
 
+/**
+ * Convert projected meter coordinates to Clipper integer coordinates.
+ *
+ * @param {[number, number]} point
+ * @param {number} scale
+ * @returns {{ x: number, y: number }}
+ */
 function toIntPoint(point, scale) {
   return {
     x: Math.round(point[0] * scale),
@@ -251,6 +333,12 @@ function toIntPoint(point, scale) {
   };
 }
 
+/**
+ * Return a simple arithmetic lon/lat centroid for small local geometries.
+ *
+ * @param {Array<[number, number]>} points
+ * @returns {[number, number]}
+ */
 function polygonCentroid(points) {
   let lon = 0;
   let lat = 0;
@@ -261,6 +349,12 @@ function polygonCentroid(points) {
   return [lon / points.length, lat / points.length];
 }
 
+/**
+ * Compute a lon/lat bbox for a set of line or polygon vertices.
+ *
+ * @param {Array<[number, number]>} points
+ * @returns {[number, number, number, number]}
+ */
 function lineBbox(points) {
   let minLon = Infinity;
   let minLat = Infinity;
@@ -275,6 +369,12 @@ function lineBbox(points) {
   return [minLon, minLat, maxLon, maxLat];
 }
 
+/**
+ * Merge multiple lon/lat bounding boxes.
+ *
+ * @param {Array<[number, number, number, number]>} bboxes
+ * @returns {[number, number, number, number]}
+ */
 function mergeBboxes(bboxes) {
   let minLon = Infinity;
   let minLat = Infinity;
@@ -289,28 +389,29 @@ function mergeBboxes(bboxes) {
   return [minLon, minLat, maxLon, maxLat];
 }
 
-function minMaxVec3(positions) {
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < positions.length; i += 3) {
-    min[0] = Math.min(min[0], positions[i]);
-    min[1] = Math.min(min[1], positions[i + 1]);
-    min[2] = Math.min(min[2], positions[i + 2]);
-    max[0] = Math.max(max[0], positions[i]);
-    max[1] = Math.max(max[1], positions[i + 1]);
-    max[2] = Math.max(max[2], positions[i + 2]);
-  }
-  return { min, max };
-}
-
+/**
+ * @param {[number, number]} a
+ * @param {[number, number]} b
+ * @returns {boolean}
+ */
 function samePoint(a, b) {
   return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 }
 
+/**
+ * @param {[number, number]} a
+ * @param {[number, number]} b
+ * @returns {number}
+ */
 function distance2(a, b) {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
 function positiveNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;

@@ -11,7 +11,7 @@ const viewer = new Viewer('cesiumContainer');
 const controller = await addMapZeroToCesium(viewer, {
   id: 'huelva',
   manifestUrl: './huelva.mapzero/manifest.json',
-  style: 'cesium'
+  style: 'default'
 });
 ```
 
@@ -21,15 +21,13 @@ const controller = await addMapZeroToCesium(viewer, {
 node src/cli.js 3dtiles ./huelva.mapzero
 ```
 
-By default, the exporter writes all supported 3D layers:
+By default, the exporter writes the building 3D Tiles layer:
 
 - `buildings`
-- `landuse`
-- `water`
-- `aip`
-- `railways`
-- `roads`
-- `boundaries`
+
+The default tiling uses `--max-depth 8 --max-features 1500`, which keeps dense
+city exports split into smaller b3dm files so Cesium can stream and cull them
+instead of parsing a few very large tiles.
 
 Use `--layers` for a smaller export:
 
@@ -54,10 +52,27 @@ Optional tactical defaults:
 ```js
 await addMapZeroToCesium(viewer, {
   manifestUrl: './huelva.mapzero/manifest.json',
-  style: 'cesium',
+  style: 'default',
   applyDefaultSceneStyle: true
 });
 ```
+
+The Cesium PMTiles context overlay rasterizes in a module worker with
+`OffscreenCanvas`. Browsers must support `Worker`, `OffscreenCanvas`, and
+`createImageBitmap`; there is no main-thread rasterization fallback.
+
+The worker is exported as `@map-zero/cesium/imagery-worker.js`. Most bundlers
+can copy or fingerprint that file and pass the final URL to the helper:
+
+```js
+await addMapZeroToCesium(viewer, {
+  manifestUrl: './huelva.mapzero/manifest.json',
+  contextWorkerUrl: new URL('@map-zero/cesium/imagery-worker.js', import.meta.url)
+});
+```
+
+If your framework uses a different asset convention, resolve the worker however
+that framework expects and pass the resulting URL as `contextWorkerUrl`.
 
 You can also provide your own scene hook:
 

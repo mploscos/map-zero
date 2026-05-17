@@ -1,6 +1,8 @@
 import MVT from 'ol/format/MVT.js';
+import TileLayer from 'ol/layer/Tile.js';
 import WebGLVectorTileLayer from 'ol/layer/WebGLVectorTile.js';
 import WebGLVectorTileLayerRenderer from 'ol/renderer/webgl/VectorTileLayer.js';
+import ImageTileSource from 'ol/source/ImageTile.js';
 import VectorTileSource from 'ol/source/VectorTile.js';
 import { createXYZ } from 'ol/tilegrid.js';
 import { PMTiles } from 'pmtiles';
@@ -21,6 +23,12 @@ let autoInstanceCounter = 0;
  *   style?: string | Record<string, unknown>,
  *   visibleLayers?: string[] | Set<string>,
  *   source?: 'auto' | 'pmtiles' | 'dynamic',
+ *   renderMode?: 'vector' | 'raster-worker',
+ *   workerUrl?: string | URL,
+ *   rasterWorkerUrl?: string | URL,
+ *   rasterPixelRatio?: number,
+ *   overzoomLevels?: number,
+ *   edgeGuardPixels?: number,
  *   apiBaseUrl?: string,
  *   zIndexBase?: number,
  *   onTileLoadStart?: () => void,
@@ -69,8 +77,6 @@ export async function loadMapZeroStyle(styleUrl) {
  * }>}
  */
 export async function createMapZeroOpenLayersLayers(options) {
-  patchWebGlVectorTileRenderer();
-
   const manifestUrl = resolveUrl(options.manifestUrl, documentBaseUrl());
   const manifestBaseUrl = new URL('.', manifestUrl).href;
   const manifest = options.manifest ?? await loadMapZeroManifest(manifestUrl);
@@ -94,6 +100,12 @@ export async function createMapZeroOpenLayersLayers(options) {
     onTileLoadEnd: options.onTileLoadEnd,
     onTileLoadError: options.onTileLoadError
   };
+
+  if (options.renderMode === 'raster-worker') {
+    return createRasterWorkerController(context, options);
+  }
+
+  patchWebGlVectorTileRenderer();
 
   const source = createTileSource(context);
   const layer = new WebGLVectorTileLayer({
@@ -163,6 +175,209 @@ export async function createMapZeroOpenLayersLayers(options) {
       layer.dispose();
     }
   };
+}
+
+/**
+ * @param {{
+ *   instanceId: string,
+ *   manifest: Record<string, unknown>,
+ *   manifestUrl: string,
+ *   styleDocument: Record<string, unknown>,
+ *   orderedLayers: Array<{ id: string, type?: string, style?: string }>,
+ *   layerVisibility: Map<string, boolean>,
+ *   layerOpacity: Map<string, number>
+ * }} context
+ * @param {MapZeroOpenLayersOptions} options
+ * @returns {{
+ *   id: string,
+ *   manifest: Record<string, unknown>,
+ *   style: Record<string, unknown>,
+ *   layers: TileLayer[],
+ *   setVisible: (layerId: string, visible: boolean) => void,
+ *   setOpacity: (layerId: string, opacity: number) => void,
+ *   destroy: () => void
+ * }}
+ */
+function createRasterWorkerController(context, options) {
+  if (!isPmtilesManifest(context.manifest)) {
+    throw new Error('raster-worker render mode requires vector PMTiles');
+  }
+
+  const worker = new MapZeroRasterTileWorker({
+    manifest: context.manifest,
+    manifestUrl: context.manifestUrl,
+    styleDocument: context.styleDocument,
+    layers: context.orderedLayers.map((layer) => layer.id),
+    workerUrl: options.rasterWorkerUrl ?? options.workerUrl ?? new URL('@map-zero/cesium/imagery-worker.js', import.meta.url),
+    rasterPixelRatio: options.rasterPixelRatio,
+    overzoomLevels: options.overzoomLevels,
+    edgeGuardPixels: options.edgeGuardPixels
+  });
+  worker.setVisibleLayers(context.layerVisibility);
+  const range = pmtilesZoomRange(context.manifest);
+  const maxZoom = range.maxZoom + clampInteger(options.overzoomLevels ?? 0, 0, 4);
+  const rasterPixelRatio = clampNumber(options.rasterPixelRatio ?? 2, 1, 2);
+  const source = new ImageTileSource({
+    minZoom: range.minZoom,
+    maxZoom,
+    tileGrid: createXYZ({
+      minZoom: range.minZoom,
+      maxZoom,
+      tileSize: 512
+    }),
+    tileSize: 512,
+    transition: 0,
+    interpolate: true,
+    zDirection: preferNearestZoomLevel,
+    wrapX: false,
+    loader: (z, x, y) => worker.render(z, x, y)
+  });
+  source.getTilePixelRatio = () => rasterPixelRatio;
+  const layer = new TileLayer({
+    source,
+    cacheSize: 4096,
+    preload: 0,
+    useInterimTilesOnError: false
+  });
+  tagOpenLayersLayer(layer, context.instanceId, context.orderedLayers.map((item) => item.id), 'raster');
+  applyLayerZIndex(layer, context.orderedLayers, context.styleDocument, options.zIndexBase);
+
+  const refresh = () => {
+    worker.setVisibleLayers(context.layerVisibility);
+    source.clear();
+    layer.changed();
+  };
+
+  return {
+    id: context.instanceId,
+    manifest: context.manifest,
+    style: context.styleDocument,
+    layers: [layer],
+    setVisible(layerId, visible) {
+      if (!context.layerVisibility.has(layerId)) {
+        throw new Error(`unknown map-zero layer: ${layerId}`);
+      }
+
+      context.layerVisibility.set(layerId, Boolean(visible));
+      refresh();
+    },
+    setOpacity(layerId, opacity) {
+      if (!context.layerOpacity?.has?.(layerId)) {
+        throw new Error(`unknown map-zero layer: ${layerId}`);
+      }
+
+      layer.setOpacity(clamp(Number(opacity), 0, 1));
+    },
+    destroy() {
+      source.clear();
+      worker.destroy();
+      layer.dispose();
+    }
+  };
+}
+
+class MapZeroRasterTileWorker {
+  /**
+   * @param {{
+   *   manifest: Record<string, unknown>,
+   *   manifestUrl: string,
+   *   styleDocument: Record<string, unknown>,
+   *   layers: string[],
+ *   workerUrl: string | URL,
+ *   rasterPixelRatio?: number,
+ *   overzoomLevels?: number,
+ *   edgeGuardPixels?: number
+   * }} options
+   */
+  constructor(options) {
+    assertRasterWorkerSupport();
+    this.#rasterPixelRatio = clampNumber(options.rasterPixelRatio ?? 2, 1, 2);
+    this.worker = new Worker(options.workerUrl, { type: 'module' });
+    this.worker.addEventListener('message', (event) => this.#handleMessage(event.data));
+    this.worker.addEventListener('error', (event) => this.#rejectAll(new Error(event.message || 'map-zero OpenLayers raster worker failed')));
+    this.worker.postMessage({
+      type: 'init',
+      options: {
+        manifest: options.manifest,
+        manifestUrl: resolveUrl(options.manifestUrl, documentBaseUrl()),
+        styleDocument: options.styleDocument,
+        layers: options.layers,
+        tileSize: 512,
+        pixelRatio: this.#rasterPixelRatio,
+        sourceMaximumLevel: pmtilesZoomRange(options.manifest).maxZoom,
+        overzoomLevels: clampInteger(options.overzoomLevels ?? 0, 0, 4),
+        edgeGuardPixels: clampInteger(options.edgeGuardPixels ?? 0, 0, 8),
+        source: String(pmtilesInfo(options.manifest).url ?? 'tiles.pmtiles')
+      }
+    });
+  }
+
+  /**
+   * @param {number} z
+   * @param {number} x
+   * @param {number} y
+   * @returns {Promise<ImageBitmap | HTMLCanvasElement>}
+   */
+  render(z, x, y) {
+    const id = this.#nextId++;
+    return new Promise((resolve, reject) => {
+      this.#pending.set(id, { resolve, reject });
+      this.worker.postMessage({ type: 'render', id, x, y, z });
+    }).catch(() => emptyCanvas(512 * this.#rasterPixelRatio, 512 * this.#rasterPixelRatio));
+  }
+
+  /**
+   * @param {Map<string, boolean>} visibility
+   */
+  setVisibleLayers(visibility) {
+    for (const [layerId, visible] of visibility) {
+      this.worker.postMessage({ type: 'visibility', layerId, visible });
+    }
+  }
+
+  destroy() {
+    this.#rejectAll(new Error('map-zero OpenLayers raster worker destroyed'));
+    this.worker.terminate();
+  }
+
+  /**
+   * @param {any} message
+   */
+  #handleMessage(message) {
+    if (message?.type !== 'tile') {
+      return;
+    }
+
+    const pending = this.#pending.get(message.id);
+    if (!pending) {
+      message.image?.close?.();
+      return;
+    }
+
+    this.#pending.delete(message.id);
+    if (message.error) {
+      pending.reject(new Error(message.error));
+      return;
+    }
+    pending.resolve(message.image ?? emptyCanvas(512, 512));
+  }
+
+  /**
+   * @param {Error} error
+   */
+  #rejectAll(error) {
+    for (const pending of this.#pending.values()) {
+      pending.reject(error);
+    }
+    this.#pending.clear();
+  }
+
+  /** @type {Worker} */
+  worker;
+  #rasterPixelRatio = 2;
+  #nextId = 1;
+  /** @type {Map<number, { resolve: (image: ImageBitmap | HTMLCanvasElement) => void, reject: (error: Error) => void }>} */
+  #pending = new Map();
 }
 
 /**
@@ -255,7 +470,7 @@ async function loadStyleDocument(manifest, manifestBaseUrl, style) {
  */
 function orderManifestLayers(manifest, styleDocument) {
   const layers = Array.isArray(manifest.layers)
-    ? /** @type {Array<{ id: string, type?: string, style?: string }>} */ (manifest.layers)
+    ? /** @type {string[]} */ (manifest.layers).map(manifestLayer)
     : [];
   const drawOrder = Array.isArray(styleDocument.drawOrder)
     ? /** @type {string[]} */ (styleDocument.drawOrder)
@@ -268,6 +483,29 @@ function orderManifestLayers(manifest, styleDocument) {
     const bo = getLayerRule(styleDocument, b).order ?? 0;
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi) || Number(ao) - Number(bo);
   });
+}
+
+/**
+ * @param {string} layerId
+ * @returns {{ id: string, type?: string, style?: string }}
+ */
+function manifestLayer(layerId) {
+  return {
+    id: layerId,
+    type: layerType(layerId),
+    style: layerId
+  };
+}
+
+/**
+ * @param {string} layerId
+ * @returns {string}
+ */
+function layerType(layerId) {
+  if (layerId === 'buildings' || layerId === 'water' || layerId === 'landuse') return 'polygon';
+  if (layerId === 'pois') return 'point';
+  if (layerId === 'aip' || layerId === 'aviation') return 'mixed';
+  return 'line';
 }
 
 /**
@@ -306,7 +544,7 @@ function applyLayerZIndex(layer, orderedLayers, styleDocument, zIndexBase) {
  * @param {unknown} layer
  * @param {string} instanceId
  * @param {string[]} layerIds
- * @param {'geometry' | 'labels'} role
+ * @param {'geometry' | 'labels' | 'raster'} role
  */
 function tagOpenLayersLayer(layer, instanceId, layerIds, role) {
   const namespacedLayerIds = layerIds.map((layerId) => namespaceLayerId(instanceId, layerId));
@@ -465,7 +703,6 @@ function createTileUrlFunction(context) {
  */
 function createPmtilesTileUrlFunction(context) {
   const { minZoom, maxZoom } = pmtilesZoomRange(context.manifest);
-  const packageBbox = normalizeBbox(context.manifest.bbox);
 
   return (tileCoord) => {
     if (!tileCoord) {
@@ -474,10 +711,6 @@ function createPmtilesTileUrlFunction(context) {
 
     const [z, x, y] = tileCoord;
     if (!isValidTileCoord(z, x, y) || z < minZoom || z > maxZoom) {
-      return undefined;
-    }
-
-    if (packageBbox && !bboxIntersects(tileToBbox(z, x, y), packageBbox)) {
       return undefined;
     }
 
@@ -710,7 +943,9 @@ function createWebGlStyles(context) {
     const filter = createLayerFilter(layer.id, rule);
     const styleParts = layer.id === 'roads'
       ? createRoadStyleRules(filter, rule, context.layerOpacity)
-      : layer.id === 'boundaries' || isAipLayer(layer.id)
+      : layer.id === 'boundaries'
+      ? createBoundaryStyleRules(filter, rule, context.layerOpacity)
+      : isAipLayer(layer.id)
       ? createGeometryAwareStyleRules(filter, rule, layer.id, context.layerOpacity)
       : createLayerStyleRules(filter, rule, layer.type || 'line', layer.id, context.layerOpacity);
     for (const style of styleParts) {
@@ -1019,6 +1254,45 @@ function createPropertyVisibilityFilter(filter, rule) {
   }
 
   return hidden.length > 0 ? ['all', filter, ...hidden] : filter;
+}
+
+/**
+ * @param {unknown[]} filter
+ * @param {Record<string, unknown>} rule
+ * @param {Map<string, number>} layerOpacity
+ * @returns {Array<{ filter: unknown[], style: Record<string, unknown> }>}
+ */
+function createBoundaryStyleRules(filter, rule, layerOpacity) {
+  const polygonFilter = ['all', filter, ['==', ['geometry-type'], 'Polygon']];
+  const lineFilter = ['all', filter, ['==', ['geometry-type'], 'LineString']];
+  const polygonRule = {
+    ...rule,
+    stroke: null,
+    strokeOpacity: 0,
+    strokeWidth: 0,
+    glow: {
+      ...rule.glow,
+      enabled: false
+    },
+    casing: {
+      ...rule.casing,
+      enabled: false
+    },
+    centerLine: {
+      ...rule.centerLine,
+      enabled: false
+    }
+  };
+  const lineRule = {
+    ...rule,
+    fill: null,
+    fillOpacity: 0
+  };
+
+  return [
+    ...createLayerStyleRules(polygonFilter, polygonRule, 'polygon', 'boundaries', layerOpacity),
+    ...createLayerStyleRules(lineFilter, lineRule, 'line', 'boundaries', layerOpacity)
+  ];
 }
 
 /**
@@ -1636,6 +1910,69 @@ function isValidTileCoord(z, x, y) {
 
   const maxIndex = 2 ** z;
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < maxIndex && y < maxIndex;
+}
+
+/**
+ * @param {Record<string, unknown>} manifest
+ * @returns {{ url?: string, minZoom?: unknown, maxZoom?: unknown }}
+ */
+function pmtilesInfo(manifest) {
+  const tiles = manifest.tiles && typeof manifest.tiles === 'object' ? manifest.tiles : {};
+  return /** @type {{ url?: string, minZoom?: unknown, maxZoom?: unknown }} */ (tiles);
+}
+
+/**
+ * @param {number} width
+ * @param {number} height
+ * @returns {HTMLCanvasElement}
+ */
+function emptyCanvas(width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+function assertRasterWorkerSupport() {
+  if (typeof Worker !== 'function' || typeof OffscreenCanvas !== 'function' || typeof createImageBitmap !== 'function') {
+    throw new Error('map-zero OpenLayers raster-worker mode requires Worker, OffscreenCanvas, and createImageBitmap');
+  }
+}
+
+/**
+ * Choose the raster tile zoom at the midpoint in zoom space instead of always
+ * forcing the parent or child tile. This keeps fractional zooms sharp without
+ * holding low-resolution tiles for too long.
+ *
+ * @param {number} value
+ * @param {number} high
+ * @param {number} low
+ * @returns {number}
+ */
+function preferNearestZoomLevel(value, high, low) {
+  return value - low * Math.sqrt(high / low);
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampInteger(value, min, max) {
+  const number = Math.trunc(Number(value));
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
 }
 
 /**

@@ -1,13 +1,16 @@
 {
   "name": "@map-zero/cesium",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Cesium integration helper for map-zero 3D Tiles packages.",
   "main": "./src/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./imagery-worker.js": "./src/imagery-worker.js"
   },
   "peerDependencies": {
-    "cesium": "^1.141.0"
+    "cesium": "^1.141.0",
+    "ol": "^10.9.0",
+    "pmtiles": "^4.4.1"
   }
 }

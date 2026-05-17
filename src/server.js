@@ -114,6 +114,18 @@ export async function createMapZeroServer(options) {
       .send(moduleSource);
   });
 
+  app.get('/vendor/pmtiles-worker.js', async (request, reply) => {
+    const moduleSource = await fs.readFile(new URL('../node_modules/pmtiles/dist/esm/index.js', import.meta.url), 'utf8');
+    const browserSource = moduleSource
+      .replaceAll('from"fflate"', 'from"/vendor/fflate.js"')
+      .replaceAll("from 'fflate'", "from '/vendor/fflate.js'")
+      .replaceAll('from "fflate"', 'from "/vendor/fflate.js"');
+    reply
+      .header('cache-control', 'public, max-age=31536000, immutable')
+      .type('text/javascript; charset=utf-8')
+      .send(browserSource);
+  });
+
   app.get('/vendor/fflate.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../node_modules/fflate/esm/browser.js', import.meta.url), 'utf8');
     reply
@@ -125,9 +137,33 @@ export async function createMapZeroServer(options) {
   app.get('/map-zero-cesium.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../packages/cesium/src/index.js', import.meta.url), 'utf8');
     const browserSource = moduleSource.replace(
-      "import {\n  Cesium3DTileStyle,\n  Cesium3DTileset\n} from 'cesium';",
-      "const { Cesium3DTileStyle, Cesium3DTileset } = globalThis.Cesium;"
+      "import {\n  Cesium3DTileColorBlendMode,\n  Cesium3DTileStyle,\n  Cesium3DTileset,\n  ImageryLayer\n} from 'cesium';",
+      "const { Cesium3DTileColorBlendMode, Cesium3DTileStyle, Cesium3DTileset, ImageryLayer } = globalThis.Cesium;"
     );
+    reply
+      .header('cache-control', 'no-store')
+      .type('text/javascript; charset=utf-8')
+      .send(browserSource);
+  });
+
+  app.get('/imagery.js', async (request, reply) => {
+    const moduleSource = await fs.readFile(new URL('../packages/cesium/src/imagery.js', import.meta.url), 'utf8');
+    const browserSource = moduleSource.replace(
+      "import {\n  Event,\n  Rectangle,\n  WebMercatorTilingScheme\n} from 'cesium';",
+      "const { Event, Rectangle, WebMercatorTilingScheme } = globalThis.Cesium;"
+    );
+    reply
+      .header('cache-control', 'no-store')
+      .type('text/javascript; charset=utf-8')
+      .send(browserSource);
+  });
+
+  app.get('/imagery-worker.js', async (request, reply) => {
+    const moduleSource = await fs.readFile(new URL('../packages/cesium/src/imagery-worker.js', import.meta.url), 'utf8');
+    const browserSource = moduleSource
+      .replace("import Feature from 'ol/Feature.js';", "import Feature from 'https://esm.sh/ol@10.9.0/Feature.js';")
+      .replace("import MVT from 'ol/format/MVT.js';", "import MVT from 'https://esm.sh/ol@10.9.0/format/MVT.js';")
+      .replace("import { PMTiles } from 'pmtiles';", "import { PMTiles } from '/vendor/pmtiles-worker.js';");
     reply
       .header('cache-control', 'no-store')
       .type('text/javascript; charset=utf-8')
@@ -556,14 +592,6 @@ function pmtilesArchivePath(packageDir, manifest) {
  * @returns {{ urlPrefix: string, pathPrefix: string } | null}
  */
 function tiles3dBasePath(packageDir, manifest) {
-  const cesiumTilesets = /** @type {{ tilesets?: Record<string, unknown> } | undefined} */ (manifest.cesium)?.tilesets;
-  if (cesiumTilesets && typeof cesiumTilesets === 'object' && Object.keys(cesiumTilesets).length > 0) {
-    return {
-      urlPrefix: '3dtiles',
-      pathPrefix: join(packageDir, '3dtiles')
-    };
-  }
-
   const tiles3d = /** @type {{ format?: unknown, url?: unknown } | undefined} */ (manifest.tiles3d);
   if (tiles3d?.format !== '3dtiles' || typeof tiles3d.url !== 'string') {
     return null;

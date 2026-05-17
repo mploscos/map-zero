@@ -1,4 +1,3 @@
-import { LAYER_DEFINITIONS } from './layers.js';
 import { packageNameFromPath } from './utils.js';
 
 /**
@@ -18,12 +17,6 @@ export function createManifest(options) {
       default: 'styles/neon-dark.json',
       'neon-dark': 'styles/neon-dark.json'
     },
-    layers: options.layers.map((layer) => ({
-      id: layer,
-      type: LAYER_DEFINITIONS[layer].type,
-      source: 'data.gpkg',
-      table: layer,
-      style: layer
-    }))
+    layers: options.layers
   };
 }

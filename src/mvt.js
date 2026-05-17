@@ -2,6 +2,7 @@ import geojsonvt from 'geojson-vt';
 import vtpbf from 'vt-pbf';
 
 const TILE_EXTENT = 4096;
+const TILE_QUERY_BUFFER_UNITS = 128;
 const MAX_ZOOM = 22;
 const DEFAULT_MAX_FEATURES = 12000;
 const TILE_DETAIL_LEVELS = new Set(['overview', 'normal', 'full']);
@@ -204,9 +205,10 @@ export function encodeMvtTile(reader, layerId, zValue, xValue, yValue, options =
 export function encodeMvtTileWithStats(reader, layerId, zValue, xValue, yValue, options = {}) {
   const { z, x, y } = parseTileParams(zValue, xValue, yValue);
   const bbox = tileToBbox(z, x, y);
+  const queryBbox = tileQueryBbox(z, x, y);
   const detail = normalizeDetail(options.detail, z);
   validateRequestedLayers(reader.getLayers(), new Set([layerId]));
-  const layerFeatures = readRequestedLayerFeatures(reader, layerId, bbox, z, options.style ?? null, Boolean(options.debugLabels));
+  const layerFeatures = readRequestedLayerFeatures(reader, layerId, queryBbox, z, options.style ?? null, Boolean(options.debugLabels));
   const limited = applyFeatureLimit([layerFeatures], maxFeaturesForZoom(z, options.maxFeatures), z);
   const layerTile = createLayerTile(limited.layers[0]?.features ?? [], bbox, z, x, y, layerId, detail);
   const tile = layerTile.tile;
@@ -267,6 +269,7 @@ export function encodeMvtTileSet(reader, zValue, xValue, yValue, layerIds, optio
 export function encodeMvtTileSetWithStats(reader, zValue, xValue, yValue, layerIds, options = {}) {
   const { z, x, y } = parseTileParams(zValue, xValue, yValue);
   const bbox = tileToBbox(z, x, y);
+  const queryBbox = tileQueryBbox(z, x, y);
   const detail = normalizeDetail(options.detail, z);
   /** @type {Record<string, { features: unknown[] }>} */
   const layers = {};
@@ -293,7 +296,7 @@ export function encodeMvtTileSetWithStats(reader, zValue, xValue, yValue, layerI
       }
     }
 
-    const layerFeatures = readRequestedLayerFeatures(reader, layerId, bbox, z, options.style ?? null, Boolean(options.debugLabels));
+    const layerFeatures = readRequestedLayerFeatures(reader, layerId, queryBbox, z, options.style ?? null, Boolean(options.debugLabels));
     originalFeatureCount += layerFeatures.originalFeatureCount;
     layerFeatureBatches.push(layerFeatures);
   }
@@ -2539,13 +2542,42 @@ function createTileIndex(features, z) {
       extent: TILE_EXTENT,
       maxZoom: z,
       indexMaxZoom: z,
-      buffer: 64,
+      buffer: TILE_QUERY_BUFFER_UNITS,
       // Geometries are already simplified in lon/lat before indexing.
       // Keep geojson-vt from applying a second aggressive simplification pass
       // that can erase small-but-valid low-zoom tile content.
       tolerance: 0
     }
   );
+}
+
+/**
+ * Return the feature-query bbox for a tile, expanded by the same edge buffer
+ * used during MVT clipping. Encoding still uses the exact tile bbox.
+ *
+ * @param {number} z
+ * @param {number} x
+ * @param {number} y
+ * @returns {[number, number, number, number]}
+ */
+function tileQueryBbox(z, x, y) {
+  return expandBboxByTileUnits(tileToBbox(z, x, y), TILE_QUERY_BUFFER_UNITS);
+}
+
+/**
+ * @param {[number, number, number, number]} bbox
+ * @param {number} units
+ * @returns {[number, number, number, number]}
+ */
+function expandBboxByTileUnits(bbox, units) {
+  const xMargin = ((bbox[2] - bbox[0]) * units) / TILE_EXTENT;
+  const yMargin = ((bbox[3] - bbox[1]) * units) / TILE_EXTENT;
+  return [
+    Math.max(-180, bbox[0] - xMargin),
+    Math.max(-85.05112878, bbox[1] - yMargin),
+    Math.min(180, bbox[2] + xMargin),
+    Math.min(85.05112878, bbox[3] + yMargin)
+  ];
 }
 
 /**

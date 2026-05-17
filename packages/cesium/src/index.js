@@ -1,7 +1,16 @@
 import {
+  Cesium3DTileColorBlendMode,
   Cesium3DTileStyle,
-  Cesium3DTileset
+  Cesium3DTileset,
+  ImageryLayer
 } from 'cesium';
+import {
+  contextOverlayConfig,
+  hasMapZeroContextOverlay,
+  MapZeroCesiumImageryProvider
+} from './imagery.js';
+
+export { MapZeroCesiumImageryProvider } from './imagery.js';
 
 let autoInstanceCounter = 0;
 
@@ -14,8 +23,7 @@ let autoInstanceCounter = 0;
  *   bbox?: [number, number, number, number],
  *   styles?: Record<string, string>,
  *   tiles3d?: { format?: string, url?: string, layers?: string[] },
- *   cesium?: { tilesets?: Record<string, string>, bbox?: [number, number, number, number], focusBbox?: [number, number, number, number] },
- *   layers?: Array<{ id: string, table?: string, style?: string }>
+ *   layers?: string[]
  * }} MapZeroManifest
  */
 
@@ -79,7 +87,10 @@ export async function loadMapZeroStyle(input, options = {}) {
  *   manifest?: MapZeroManifest,
  *   style?: string | Record<string, unknown>,
  *   styleJson?: Record<string, unknown> | null,
- *   opacity?: number
+ *   opacity?: number,
+ *   tilesetOpacity?: number,
+ *   buildingsOpacity?: number,
+ *   buildings3d?: boolean
  * }} options
  * @returns {Promise<{ id: string, manifest: MapZeroManifest, style: Record<string, unknown> | null, tilesets: Record<string, Cesium3DTileset> }>}
  */
@@ -95,7 +106,9 @@ export async function createMapZeroCesiumTilesets(options) {
         })
   );
 
-  const tilesetEntries = manifestTilesetEntries(manifest);
+  const tilesetEntries = manifestTilesetEntries(manifest, {
+    buildings3d: options.buildings3d
+  });
   if (tilesetEntries.length === 0) {
     return {
       id: instanceId,
@@ -111,10 +124,12 @@ export async function createMapZeroCesiumTilesets(options) {
     const url = resolveRelativeUrl(entry.url, options.manifestUrl);
     const tileset = await Cesium3DTileset.fromUrl(url);
     tagCesiumTileset(tileset, instanceId, entry.layerId);
+    configureCesiumTilesetStreaming(tileset, entry.layerId);
+    configureCesiumTilesetColor(tileset, entry.layerId);
     tileset.style = createMapZeroCesiumStyle(styleJson, {
       layerId: entry.layerId,
       visibleLayers: new Set([entry.layerId]),
-      opacity: options.opacity ?? 1
+      opacity: tilesetOpacityForLayer(entry.layerId, options)
     });
     tilesets[entry.layerId] = tileset;
   }
@@ -139,8 +154,17 @@ export async function createMapZeroCesiumTilesets(options) {
  *   manifestUrl: string,
  *   style?: string | Record<string, unknown>,
  *   opacity?: number,
+ *   tilesetOpacity?: number,
+ *   buildingsOpacity?: number,
+ *   contextOverlay?: boolean,
+ *   contextOpacity?: number,
+ *   contextOverzoomLevels?: number,
+ *   contextEdgeGuardPixels?: number,
+ *   contextWorkerUrl?: string | URL,
+ *   buildings3d?: boolean,
  *   zoomTo?: boolean,
  *   applyDefaultSceneStyle?: boolean,
+ *   sceneStyle?: Record<string, unknown>,
  *   configureScene?: (viewer: unknown) => void
  * }} options
  * @returns {Promise<{
@@ -148,6 +172,8 @@ export async function createMapZeroCesiumTilesets(options) {
  *   manifest: MapZeroManifest,
  *   style: Record<string, unknown> | null,
  *   tilesets: Record<string, Cesium3DTileset>,
+ *   imageryProvider?: MapZeroCesiumImageryProvider,
+ *   imageryLayer?: ImageryLayer,
  *   setVisible: (layerId: string, visible: boolean) => void,
  *   setOpacity: (layerId: string, opacity: number) => void,
  *   destroy: () => void
@@ -155,7 +181,7 @@ export async function createMapZeroCesiumTilesets(options) {
  */
 export async function addMapZeroToCesium(viewer, options) {
   if (options.applyDefaultSceneStyle) {
-    applyMapZeroCesiumSceneStyle(viewer);
+    applyMapZeroCesiumSceneStyle(viewer, options.sceneStyle);
   }
   if (typeof options.configureScene === 'function') {
     options.configureScene(viewer);
@@ -164,8 +190,28 @@ export async function addMapZeroToCesium(viewer, options) {
   const result = await createMapZeroCesiumTilesets(options);
   const uniqueTilesets = [...new Set(Object.values(result.tilesets))];
   const visibleLayers = new Set(Object.keys(result.tilesets));
-  let opacity = options.opacity ?? 1;
+  let opacity = options.tilesetOpacity ?? options.opacity ?? 1;
+  const imageryProvider = shouldCreateContextOverlay(result.manifest, options)
+    ? new MapZeroCesiumImageryProvider({
+        manifest: result.manifest,
+        manifestUrl: options.manifestUrl,
+        styleDocument: result.style,
+        layers: contextOverlayConfig(result.manifest)?.layers,
+        overzoomLevels: options.contextOverzoomLevels,
+        edgeGuardPixels: options.contextEdgeGuardPixels,
+        workerUrl: options.contextWorkerUrl
+      })
+    : undefined;
+  const imageryLayer = imageryProvider
+    ? new ImageryLayer(imageryProvider, {
+        alpha: clamp01(Number(options.contextOpacity ?? options.opacity ?? 1)),
+        show: true
+      })
+    : undefined;
 
+  if (imageryLayer) {
+    viewer.imageryLayers?.add(imageryLayer);
+  }
   for (const tileset of uniqueTilesets) {
     viewer.scene.primitives.add(tileset);
   }
@@ -181,6 +227,8 @@ export async function addMapZeroToCesium(viewer, options) {
     id: result.id,
     style: result.style,
     tilesets: result.tilesets,
+    imageryProvider,
+    imageryLayer,
     setVisible(layerId, visible) {
       const tileset = result.tilesets[layerId];
       if (tileset) {
@@ -194,6 +242,9 @@ export async function addMapZeroToCesium(viewer, options) {
           visibleLayers
         });
       }
+      imageryProvider?.setLayerVisible(layerId, visible);
+      imageryProvider?.setLayerVisible(layerId === 'aviation' ? 'aip' : layerId, visible);
+      viewer.scene?.requestRender?.();
     },
     setOpacity(layerId, nextOpacity) {
       if (!result.tilesets[layerId]) return;
@@ -204,6 +255,9 @@ export async function addMapZeroToCesium(viewer, options) {
       });
     },
     destroy() {
+      if (imageryLayer) {
+        viewer.imageryLayers?.remove(imageryLayer, true);
+      }
       for (const tileset of uniqueTilesets) {
         viewer.scene.primitives.remove(tileset);
       }
@@ -219,25 +273,29 @@ export async function addMapZeroToCesium(viewer, options) {
  * black-background tactical look.
  *
  * @param {any} viewer
+ * @param {Record<string, unknown>} [options]
  */
-export function applyMapZeroCesiumSceneStyle(viewer) {
+export function applyMapZeroCesiumSceneStyle(viewer, options = {}) {
   const Cesium = globalThis.Cesium;
   const scene = viewer?.scene;
   if (!scene || !Cesium) {
     return;
   }
 
-  scene.backgroundColor = Cesium.Color.BLACK;
+  const backgroundColor = colorFromOption(Cesium, options.backgroundColor, Cesium.Color.BLACK);
+  const globeBaseColor = colorFromOption(Cesium, options.globeBaseColor, backgroundColor);
+  scene.backgroundColor = backgroundColor;
   if (scene.globe) {
-    scene.globe.baseColor = Cesium.Color.BLACK;
-    scene.globe.enableLighting = false;
-    scene.globe.depthTestAgainstTerrain = false;
+    scene.globe.baseColor = globeBaseColor;
+    scene.globe.enableLighting = Boolean(options.enableLighting ?? false);
+    scene.globe.depthTestAgainstTerrain = Boolean(options.depthTestAgainstTerrain ?? false);
   }
-  if (scene.fog) scene.fog.enabled = false;
-  if (scene.skyBox) scene.skyBox.show = false;
-  if (scene.sun) scene.sun.show = false;
-  if (scene.moon) scene.moon.show = false;
-  if (scene.skyAtmosphere) scene.skyAtmosphere.show = false;
+  if (scene.fog) scene.fog.enabled = Boolean(options.fog ?? false);
+  if (scene.skyBox) scene.skyBox.show = Boolean(options.skyBox ?? false);
+  if (scene.sun) scene.sun.show = Boolean(options.sun ?? false);
+  if (scene.moon) scene.moon.show = Boolean(options.moon ?? false);
+  if (scene.skyAtmosphere) scene.skyAtmosphere.show = Boolean(options.skyAtmosphere ?? false);
+  scene.requestRender?.();
 }
 
 /**
@@ -267,8 +325,8 @@ export function createMapZeroCesiumStyle(styleJson, options) {
  * Pick a single material color from a map-zero style rule.
  *
  * In 2D, buildings commonly use a dark fill plus a bright stroke. A single
- * Cesium material cannot show that outline, so building solids use the body or
- * stroke color instead of the dark fill.
+ * Cesium material cannot show that outline, so building solids use the fill:
+ * it keeps the mass quiet while avoiding translucent sorting artifacts.
  *
  * @param {Record<string, any> | null} rule
  * @param {string} layerId
@@ -277,8 +335,8 @@ export function createMapZeroCesiumStyle(styleJson, options) {
 function cesiumLayerMaterial(rule, layerId) {
   if (layerId === 'buildings') {
     return {
-      color: String(rule?.body?.color ?? rule?.stroke ?? rule?.fill ?? '#ff00ff'),
-      opacity: clamp01(Number(rule?.body?.opacity ?? rule?.strokeOpacity ?? rule?.fillOpacity ?? 0.8))
+      color: buildingSolidColor(rule),
+      opacity: 1
     };
   }
 
@@ -304,6 +362,21 @@ function applyStyleToTilesetMap(tilesets, style, options) {
 }
 
 /**
+ * @param {string} layerId
+ * @param {{ opacity?: number, tilesetOpacity?: number, buildingsOpacity?: number }} options
+ * @returns {number}
+ */
+function tilesetOpacityForLayer(layerId, options) {
+  if (layerId === 'buildings' && Number.isFinite(Number(options.buildingsOpacity))) {
+    return Number(options.buildingsOpacity);
+  }
+  if (Number.isFinite(Number(options.tilesetOpacity))) {
+    return Number(options.tilesetOpacity);
+  }
+  return Number(options.opacity ?? 1);
+}
+
+/**
  * @param {Record<string, unknown> | null} styleJson
  * @param {string} layerId
  * @returns {Record<string, any> | null}
@@ -315,27 +388,85 @@ function layerStyle(styleJson, layerId) {
 
 /**
  * @param {MapZeroManifest} manifest
+ * @param {{ buildings3d?: boolean }} [options]
  * @returns {Array<{ layerId: string, url: string }>}
  */
-function manifestTilesetEntries(manifest) {
-  const cesiumTilesets = manifest.cesium?.tilesets;
-  if (cesiumTilesets && typeof cesiumTilesets === 'object') {
-    return Object.entries(cesiumTilesets)
-      .filter(([, url]) => typeof url === 'string' && url.length > 0)
-      .map(([layerId, url]) => ({ layerId, url }));
-  }
-
+function manifestTilesetEntries(manifest, options = {}) {
   if (manifest.tiles3d?.format === '3dtiles' && typeof manifest.tiles3d.url === 'string') {
     const layers = Array.isArray(manifest.tiles3d.layers) && manifest.tiles3d.layers.length > 0
       ? manifest.tiles3d.layers.map(String)
       : ['buildings'];
-    return layers.map((layerId) => ({
-      layerId,
-      url: /** @type {string} */ (manifest.tiles3d?.url)
-    }));
+    return layers
+      .filter((layerId) => isAllowedCesiumTilesetLayer(layerId, options))
+      .map((layerId) => ({
+        layerId,
+        url: /** @type {string} */ (manifest.tiles3d?.url)
+      }));
   }
 
   return [];
+}
+
+/**
+ * @param {string} layerId
+ * @param {{ buildings3d?: boolean }} options
+ * @returns {boolean}
+ */
+function isAllowedCesiumTilesetLayer(layerId, options) {
+  return layerId !== 'buildings' || options.buildings3d !== false;
+}
+
+/**
+ * @param {MapZeroManifest} manifest
+ * @param {{ contextOverlay?: boolean }} options
+ * @returns {boolean}
+ */
+function shouldCreateContextOverlay(manifest, options) {
+  if (options.contextOverlay === false) {
+    return false;
+  }
+  return hasMapZeroContextOverlay(manifest);
+}
+
+/**
+ * @param {Cesium3DTileset} tileset
+ * @param {string} layerId
+ */
+function configureCesiumTilesetStreaming(tileset, layerId) {
+  if (layerId !== 'buildings') {
+    return;
+  }
+
+  tileset.maximumScreenSpaceError = 24;
+  tileset.skipLevelOfDetail = true;
+  tileset.baseScreenSpaceError = 1024;
+  tileset.skipScreenSpaceErrorFactor = 16;
+  tileset.skipLevels = 1;
+  tileset.immediatelyLoadDesiredLevelOfDetail = false;
+  tileset.loadSiblings = false;
+  tileset.cullWithChildrenBounds = true;
+  tileset.dynamicScreenSpaceError = true;
+  tileset.dynamicScreenSpaceErrorDensity = 0.00278;
+  tileset.dynamicScreenSpaceErrorFactor = 4;
+  tileset.preloadWhenHidden = false;
+  tileset.preloadFlightDestinations = false;
+  tileset.cacheBytes = 256 * 1024 * 1024;
+  tileset.maximumCacheOverflowBytes = 128 * 1024 * 1024;
+}
+
+/**
+ * @param {Cesium3DTileset} tileset
+ * @param {string} layerId
+ */
+function configureCesiumTilesetColor(tileset, layerId) {
+  if (layerId === 'buildings') {
+    tileset.backFaceCulling = false;
+    tileset.colorBlendMode = Cesium3DTileColorBlendMode.MIX;
+    tileset.colorBlendAmount = 0.45;
+    return;
+  }
+  tileset.colorBlendMode = Cesium3DTileColorBlendMode.REPLACE;
+  tileset.colorBlendAmount = 1;
 }
 
 /**
@@ -393,6 +524,39 @@ function resolveRelativeUrl(path, baseUrl) {
  */
 function safeCssColor(color) {
   return /^#[0-9a-f]{6}$/i.test(color) ? color : '#ff00ff';
+}
+
+/**
+ * @param {Record<string, any> | null} rule
+ * @returns {string}
+ */
+function buildingSolidColor(rule) {
+  const explicit = rule?.cesium?.color ?? rule?.tiles3d?.color ?? rule?.material?.color;
+  if (typeof explicit === 'string' && isHexColor(explicit)) {
+    return explicit;
+  }
+  return '#8a3f82';
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(value);
+}
+
+/**
+ * @param {any} Cesium
+ * @param {unknown} value
+ * @param {any} fallback
+ * @returns {any}
+ */
+function colorFromOption(Cesium, value, fallback) {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  return Cesium.Color.fromCssColorString(value) ?? fallback;
 }
 
 

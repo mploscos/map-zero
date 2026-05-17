@@ -6,7 +6,9 @@ import { Command, InvalidArgumentError } from 'commander';
 import { buildPackage } from './build.js';
 import { export3dTiles } from './3dtiles/export.js';
 import { exportPmtiles } from './export-pmtiles.js';
+import { createPackageFromBbox } from './from-bbox.js';
 import { LAYER_ALIASES, SUPPORTED_LAYERS } from './layers.js';
+import { packageMapZero } from './package.js';
 import { serveMapZero } from './server.js';
 import { availableStylePresets, availableStyleThemes, writePackageStyle } from './style-command.js';
 import { parseBbox, parseLayerList } from './utils.js';
@@ -56,6 +58,77 @@ program
   });
 
 program
+  .command('from-bbox')
+  .description('Download an OSM extract and build a complete map-zero package for a bbox.')
+  .requiredOption('--bbox <bbox>', 'minLon,minLat,maxLon,maxLat', parseBboxOption)
+  .requiredOption('--out <output.mapzero>', 'output package folder')
+  .option('--layers <layers>', 'comma-separated logical layers; defaults to all supported layers', parseLayersOption)
+  .option('--minzoom <zoom>', 'minimum PMTiles zoom to export', parseZoomOption, 8)
+  .option('--maxzoom <zoom>', 'maximum PMTiles zoom to export', parseZoomOption, 16)
+  .option('--workers <count>', 'parallel PMTiles tile generation workers', parsePositiveIntegerOption, 1)
+  .option('--force-pmtiles', 'allow very large PMTiles exports')
+  .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
+  .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
+  .option('--force-download', 're-download the selected OSM extract even if cached')
+  .option('--batch-size <count>', 'geometry build batch size', parsePositiveIntegerOption, 5000)
+  .option('--keep-temp', 'keep the temporary SQLite build database')
+  .option('--debug-build', 'show build memory usage in progress logs')
+  .option('--no-pmtiles', 'skip PMTiles export')
+  .option('--no-3dtiles', 'skip 3D Tiles export')
+  .option('--no-zip', 'skip portable zip creation')
+  .option('--include-gpkg', 'include data.gpkg in the portable zip')
+  .action(async (options) => {
+    const buildProgress = createBuildProgressReporter();
+    try {
+      const result = await createPackageFromBbox({
+        bbox: options.bbox,
+        out: options.out,
+        layers: options.layers ?? [...SUPPORTED_LAYERS],
+        minZoom: options.minzoom,
+        maxZoom: options.maxzoom,
+        workers: options.workers,
+        forcePmtiles: Boolean(options.forcePmtiles),
+        cacheDir: options.cacheDir,
+        providerIndexUrl: options.providerIndexUrl,
+        forceDownload: Boolean(options.forceDownload),
+        batchSize: options.batchSize,
+        keepTemp: Boolean(options.keepTemp),
+        debugBuild: Boolean(options.debugBuild),
+        pmtiles: options.pmtiles,
+        tiles3d: options.tiles3d,
+        zip: options.zip,
+        includeGpkg: Boolean(options.includeGpkg),
+        onStage(message) {
+          console.log(message);
+        },
+        onBuildProgress: buildProgress.update,
+        onPmtilesProgress: reportPmtilesProgress,
+        on3dTilesProgress: report3dTilesProgress
+      });
+      buildProgress.finish();
+
+      console.log(`Built ${result.outDir}`);
+      console.log(`  source: ${result.source.name} (${result.source.path})`);
+      for (const [layer, count] of Object.entries(result.counts)) {
+        console.log(`  ${layer}: ${count}`);
+      }
+      if (result.pmtiles) {
+        console.log(`  PMTiles: ${result.pmtiles.outPath} (${formatBytes(result.pmtiles.outputBytes)})`);
+      }
+      if (result.tiles3d) {
+        console.log(`  3D Tiles: ${result.tiles3d.tilesetPath} (${formatBytes(result.tiles3d.outputBytes)})`);
+      }
+      if (result.zip) {
+        console.log(`  ZIP: ${result.zip.outPath} (${formatBytes(result.zip.outputBytes)})`);
+      }
+    } catch (error) {
+      buildProgress.finish();
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
   .command('pmtiles')
   .description('Export a .mapzero package to a static vector PMTiles archive.')
   .argument('<package.mapzero>', 'map-zero package folder')
@@ -92,8 +165,8 @@ program
   .argument('<package.mapzero>', 'map-zero package folder')
   .option('--out <dir>', 'output 3D Tiles folder; defaults to <package>/3dtiles')
   .option('--layers <layers>', 'comma-separated 3D layers; defaults to all supported 3D layers', parse3dTilesLayersOption)
-  .option('--max-depth <count>', 'quadtree depth for building tiles', parseNonNegativeIntegerOption, 4)
-  .option('--max-features <count>', 'maximum features per leaf tile before subdivision', parsePositiveIntegerOption, 2500)
+  .option('--max-depth <count>', 'quadtree depth for building tiles', parseNonNegativeIntegerOption, 8)
+  .option('--max-features <count>', 'maximum features per leaf tile before subdivision', parsePositiveIntegerOption, 1500)
   .option('--default-height <meters>', 'fallback building height in meters', parsePositiveNumberOption, 8)
   .action(async (packageDir, options) => {
     try {
@@ -146,6 +219,31 @@ program
       console.log(`Wrote ${result.sourceType} ${result.name} style: ${result.stylePath}`);
       console.log(`Default style: ${result.styleUrl}`);
       console.log('data.gpkg and tiles.pmtiles were not modified.');
+    } catch (error) {
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('package')
+  .description('Create a portable zip with manifest, styles, PMTiles, and 3D Tiles.')
+  .argument('<package.mapzero>', 'map-zero package folder')
+  .option('--out <file.zip>', 'output zip path; defaults to <package>.zip')
+  .option('--include-gpkg', 'include the source GeoPackage in the zip')
+  .action(async (packageDir, options) => {
+    try {
+      const result = await packageMapZero({
+        packageDir,
+        out: options.out,
+        includeGpkg: Boolean(options.includeGpkg)
+      });
+
+      console.log(`Packaged ${result.outPath}`);
+      console.log(`  files: ${formatInteger(result.fileCount)}`);
+      console.log(`  input size: ${formatBytes(result.inputBytes)}`);
+      console.log(`  zip size: ${formatBytes(result.outputBytes)}`);
+      console.log(`  data.gpkg: ${result.includedGpkg ? 'included' : 'excluded'}`);
     } catch (error) {
       console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;

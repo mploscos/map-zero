@@ -1,11 +1,22 @@
 /**
+ * Minimal Batched 3D Model (b3dm) container writer.
+ *
+ * map-zero currently emits one GLB per tile and does not use batch IDs or per
+ * feature metadata, so the feature table only declares BATCH_LENGTH and an
+ * optional RTC_CENTER for high precision rendering in Cesium.
+ *
  * Wrap a GLB buffer in a minimal valid B3DM container.
  *
  * @param {Buffer} glb
+ * @param {{ rtcCenter?: [number, number, number] }} [options]
  * @returns {Buffer}
  */
-export function buildB3dm(glb) {
-  const featureTableJson = padJsonForSection({ BATCH_LENGTH: 0 }, 28);
+export function buildB3dm(glb, options = {}) {
+  const featureTable = { BATCH_LENGTH: 0 };
+  if (options.rtcCenter) {
+    featureTable.RTC_CENTER = options.rtcCenter;
+  }
+  const featureTableJson = padJsonForSection(featureTable, 28);
   const header = Buffer.alloc(28);
   header.write('b3dm', 0, 4, 'ascii');
   header.writeUInt32LE(1, 4);
@@ -18,6 +29,9 @@ export function buildB3dm(glb) {
 }
 
 /**
+ * Serialize and pad feature/batch table JSON so the following section starts on
+ * an 8-byte boundary, as required by the b3dm container.
+ *
  * @param {unknown} value
  * @param {number} sectionOffset
  * @returns {Buffer}
@@ -29,6 +43,8 @@ function padJsonForSection(value, sectionOffset) {
 }
 
 /**
+ * Round a byte length up to the next multiple of alignment.
+ *
  * @param {number} value
  * @param {number} alignment
  * @returns {number}

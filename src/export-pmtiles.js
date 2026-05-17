@@ -746,10 +746,11 @@ function createExportRecommendation(options) {
  */
 function tileRangeForBbox(bbox, z) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
-  const minX = lonToTileX(minLon, z);
-  const maxX = lonToTileX(maxLon, z);
-  const minY = latToTileY(maxLat, z);
-  const maxY = latToTileY(minLat, z);
+  const maxTile = 2 ** z - 1;
+  const minX = clamp(lonToTileX(minLon, z) - 1, 0, maxTile);
+  const maxX = clamp(lonToTileX(maxLon, z) + 1, 0, maxTile);
+  const minY = clamp(latToTileY(maxLat, z) - 1, 0, maxTile);
+  const maxY = clamp(latToTileY(minLat, z) + 1, 0, maxTile);
   return {
     minX,
     maxX,
@@ -807,7 +808,7 @@ function formatInteger(value) {
  * @returns {string[]}
  */
 function activeLayerIdsForZoom(manifest, style, zoom) {
-  const layers = /** @type {Array<Record<string, unknown>>} */ (manifest.layers ?? []);
+  const layers = /** @type {string[]} */ (manifest.layers ?? []);
   const visualLayers = layers
     .filter((layer) => {
       const rule = layerStyleRule(style, layer);
@@ -825,19 +826,19 @@ function activeLayerIdsForZoom(manifest, style, zoom) {
 
       return true;
     })
-    .map((layer) => String(layer.id));
+    .map((layer) => String(layer));
 
   return visualLayers;
 }
 
 /**
  * @param {Record<string, unknown> | null} style
- * @param {Record<string, unknown>} layer
+ * @param {string} layerId
  * @returns {Record<string, unknown>}
  */
-function layerStyleRule(style, layer) {
+function layerStyleRule(style, layerId) {
   const styleLayers = /** @type {Record<string, unknown> | undefined} */ (style?.layers);
-  const rule = /** @type {Record<string, unknown>} */ (styleLayers?.[String(layer.style ?? layer.id)] ?? {});
+  const rule = /** @type {Record<string, unknown>} */ (styleLayers?.[layerId] ?? {});
   const visibility = rule.visibility && typeof rule.visibility === 'object'
     ? /** @type {Record<string, unknown>} */ (rule.visibility)
     : null;
@@ -902,7 +903,7 @@ function closeWriteStream(stream) {
  * @returns {Record<string, unknown>}
  */
 function createPmtilesMetadata(manifest, style, minZoom, maxZoom, bbox) {
-  const layers = /** @type {Array<Record<string, unknown>>} */ (manifest.layers ?? []);
+  const layers = /** @type {string[]} */ (manifest.layers ?? []);
   return {
     tilejson: '3.0.0',
     name: manifest.name ?? 'map-zero',
@@ -914,25 +915,25 @@ function createPmtilesMetadata(manifest, style, minZoom, maxZoom, bbox) {
     center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2, Math.min(Math.max(12, minZoom), maxZoom)],
     minzoom: minZoom,
     maxzoom: maxZoom,
-    vector_layers: layers.map((layer) => ({
-      id: String(layer.id),
-      fields: fieldsForLayer(style, layer)
+    vector_layers: layers.map((layerId) => ({
+      id: layerId,
+      fields: fieldsForLayer(style, layerId)
     }))
   };
 }
 
 /**
  * @param {Record<string, unknown> | null} style
- * @param {Record<string, unknown>} layer
+ * @param {string} layerId
  * @returns {Record<string, string>}
  */
-function fieldsForLayer(style, layer) {
+function fieldsForLayer(style, layerId) {
   const fields = {
     id: 'String',
     name: 'String',
     layer: 'String'
   };
-  const byProperty = /** @type {Record<string, unknown> | undefined} */ (layerStyleRule(style, layer).byProperty);
+  const byProperty = /** @type {Record<string, unknown> | undefined} */ (layerStyleRule(style, layerId).byProperty);
   if (byProperty) {
     for (const key of Object.keys(byProperty)) {
       fields[key] = 'String';

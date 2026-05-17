@@ -15,9 +15,8 @@ export function createHiddenFilters(manifest, style) {
   }
 
   for (const layer of manifestLayers) {
-    const layerRecord = /** @type {Record<string, unknown>} */ (layer);
-    const layerId = String(layerRecord.id);
-    const styleId = String(layerRecord.style ?? layerId);
+    const layerId = String(layer);
+    const styleId = layerId;
     const styleRule = /** @type {Record<string, unknown> | undefined} */ (styleLayers[styleId] ?? styleLayers[layerAlias(styleId)]);
     const byProperty = /** @type {Record<string, unknown> | undefined} */ (styleRule?.byProperty);
 

@@ -24,14 +24,14 @@ const LAYER_ALIASES = {
  */
 export function readLayerMetadata(db, manifest, layerId) {
   const manifestLayer = Array.isArray(manifest.layers)
-    ? manifest.layers.find((layer) => layer?.id === layerId) ??
-      manifest.layers.find((layer) => layer?.id === LAYER_ALIASES[layerId])
+    ? manifest.layers.find((layer) => layer === layerId) ??
+      manifest.layers.find((layer) => layer === LAYER_ALIASES[layerId])
     : null;
-  if (!manifestLayer?.table) {
+  if (!manifestLayer) {
     throw new Error(`manifest does not contain layer: ${layerId}`);
   }
 
-  const table = String(manifestLayer.table);
+  const table = String(manifestLayer);
   const geometry = db.prepare(`
     SELECT column_name
     FROM gpkg_geometry_columns
