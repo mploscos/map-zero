@@ -131,7 +131,7 @@ export async function createMapZeroOpenLayersLayers(options) {
   applyLayerZIndex(layer, orderedLayers, styleDocument, options.zIndexBase);
   if (labelController) {
     tagOpenLayersLayer(labelController.layer, instanceId, orderedLayers.map((item) => item.id), 'labels');
-    labelController.layer.setZIndex(layer.getZIndex() + 100);
+    labelController.layer.setZIndex(layer.getZIndex() + 1);
   }
 
   const refresh = () => {
@@ -533,11 +533,7 @@ function createLayerVisibility(orderedLayers, styleDocument, visibleLayers) {
  * @param {number | undefined} zIndexBase
  */
 function applyLayerZIndex(layer, orderedLayers, styleDocument, zIndexBase) {
-  const maxOrder = orderedLayers.reduce((max, item) => {
-    const order = Number(getLayerRule(styleDocument, item).order);
-    return Number.isFinite(order) ? Math.max(max, order) : max;
-  }, 0);
-  layer.setZIndex((Number.isFinite(Number(zIndexBase)) ? Number(zIndexBase) : 0) + maxOrder);
+  layer.setZIndex(Number.isFinite(Number(zIndexBase)) ? Number(zIndexBase) : 0);
 }
 
 /**

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Fixed OpenLayers map-zero z-index handling so map-zero layers behave as a single ordered group and labels no longer render above dynamic application layers.
+
 ## 0.2.0
 
 - Simplified `.mapzero` manifests to use string layer lists, shared 2D/3D styles, and a single 3D buildings tileset.
