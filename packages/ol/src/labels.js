@@ -525,28 +525,36 @@ function aviationLabel(feature, aeroway, zoom) {
   const name = cleanText(feature.get('name'));
 
   if (aeroway === 'aerodrome' || aeroway === 'heliport') {
-    const text = name || aviationRefText(ref) || (aeroway === 'heliport' ? 'H' : '');
-    return isRenderableAviationText(text, aeroway) && zoom >= 11 && zoom < 15
+    const text = name || aviationRefText(ref) || aviationFallbackText(aeroway);
+    return isRenderableAviationText(text, aeroway) && zoom >= 9
       ? { text, placement: 'point', priorityClass: 'critical', zIndex: 980 }
       : null;
   }
 
   if (aeroway === 'runway') {
     const text = aviationRefText(ref) || name || 'RWY';
-    return isRenderableAviationText(text, aeroway) && zoom >= 12 ? { text, placement: 'line', priorityClass: 'important', zIndex: 900 } : null;
+    return isRenderableAviationText(text, aeroway) && zoom >= 11 ? { text, placement: 'line', priorityClass: 'important', zIndex: 900 } : null;
   }
 
   if (aeroway === 'terminal' || aeroway === 'apron') {
-    const text = name || ref;
-    return isMeaningfulLabel(text) && zoom >= 15 ? { text, placement: 'point', priorityClass: 'normal', zIndex: 720 } : null;
+    const text = name || ref || aviationFallbackText(aeroway);
+    return isMeaningfulLabel(text) && zoom >= 14 ? { text, placement: 'point', priorityClass: 'normal', zIndex: 720 } : null;
   }
 
   if (aeroway === 'helipad') {
     const text = aviationRefText(ref) || name || 'H';
-    return isRenderableAviationText(text, aeroway) && zoom >= 14 ? { text, placement: 'point', priorityClass: 'critical', zIndex: 980 } : null;
+    return isRenderableAviationText(text, aeroway) && zoom >= 12 ? { text, placement: 'point', priorityClass: 'critical', zIndex: 980 } : null;
   }
 
   return null;
+}
+
+function aviationFallbackText(aeroway) {
+  if (aeroway === 'aerodrome') return 'Aerodrome';
+  if (aeroway === 'heliport') return 'Heliport';
+  if (aeroway === 'terminal') return 'Terminal';
+  if (aeroway === 'apron') return 'Apron';
+  return cleanText(aeroway).replace(/_/g, ' ');
 }
 
 /**
@@ -664,7 +672,81 @@ function poiLabelText(feature) {
     }
   }
 
-  return '';
+  return poiFallbackLabel(feature);
+}
+
+function poiFallbackLabel(feature) {
+  const candidates = [
+    ['military', {
+      airbase: 'Airbase',
+      airfield: 'Airfield',
+      barracks: 'Barracks',
+      bunker: 'Bunker',
+      checkpoint: 'Checkpoint',
+      naval_base: 'Naval base',
+      range: 'Range',
+      training_area: 'Training area',
+      danger_area: 'Danger area',
+      ammunition_dump: 'Ammunition dump',
+      base: 'Base'
+    }],
+    ['emergency', {
+      ambulance_station: 'Ambulance station',
+      siren: 'Siren',
+      assembly_point: 'Assembly point',
+      disaster_response: 'Disaster response'
+    }],
+    ['amenity', {
+      hospital: 'Hospital',
+      police: 'Police',
+      fire_station: 'Fire station',
+      shelter: 'Shelter',
+      bunker: 'Bunker',
+      checkpoint: 'Checkpoint',
+      depot: 'Depot',
+      warehouse: 'Warehouse',
+      prison: 'Prison',
+      courthouse: 'Courthouse',
+      townhall: 'Town hall',
+      bus_station: 'Bus station',
+      ferry_terminal: 'Ferry terminal'
+    }],
+    ['power', {
+      plant: 'Power plant',
+      substation: 'Substation',
+      generator: 'Generator',
+      tower: 'Power tower',
+      transformer: 'Transformer',
+      line: 'Power line'
+    }],
+    ['man_made', {
+      communications_tower: 'Comms tower',
+      mast: 'Mast',
+      antenna: 'Antenna'
+    }],
+    ['boundary', {
+      protected_area: 'Protected area'
+    }],
+    ['landuse', {
+      industrial: 'Industrial'
+    }],
+    ['industrial', {
+      refinery: 'Refinery',
+      depot: 'Depot',
+      storage: 'Storage',
+      logistics: 'Logistics'
+    }]
+  ];
+
+  for (const [property, labels] of candidates) {
+    const value = cleanText(feature.get(property));
+    if (value && labels[value]) {
+      return labels[value];
+    }
+  }
+
+  const category = poiCategoryForFeature(feature);
+  return category === 'consumer' ? '' : titleCase(category);
 }
 
 /**
@@ -802,6 +884,12 @@ function labelOpacityForZoom(zoom, base) {
  */
 function cleanText(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function titleCase(value) {
+  return cleanText(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 /**

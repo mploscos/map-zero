@@ -1,12 +1,28 @@
 {
   "name": "@map-zero/cesium",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "description": "Cesium integration helper for map-zero 3D Tiles packages.",
+  "license": "MIT",
+  "homepage": "https://github.com/mploscos/map-zero#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mploscos/map-zero.git",
+    "directory": "packages/cesium"
+  },
+  "bugs": {
+    "url": "https://github.com/mploscos/map-zero/issues"
+  },
   "main": "./src/index.js",
   "exports": {
-    ".": "./src/index.js",
-    "./imagery-worker.js": "./src/imagery-worker.js"
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "dependencies": {
+    "@map-zero/raster": "0.3.0"
   },
   "peerDependencies": {
     "cesium": "^1.141.0",

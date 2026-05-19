@@ -20,7 +20,7 @@ When you export PMTiles or 3D Tiles, the map can be hosted serverlessly as stati
 - Provides framework-agnostic OpenLayers and Cesium helpers
 - Uses external JSON styles and compact themes
 
-Supported logical layers include `roads`, `buildings`, `water`, `landuse`, `railways`, `boundaries`, `pois`, and `aip` for aeronautical/AIP-style data. Older `aviation` layer names are still accepted as compatibility aliases.
+Supported logical layers include `roads`, `buildings`, `water`, `terrain`, `coastline`, `cliffs`, `landuse`, `railways`, `boundaries`, `pois`, and `aip` for aeronautical/AIP-style data. Older `aviation` layer names are still accepted as compatibility aliases.
 
 ## Why
 
@@ -62,7 +62,22 @@ node src/cli.js from-bbox \
   --out ./madrid.mapzero
 ```
 
-`from-bbox` downloads and caches the smallest Geofabrik `.osm.pbf` extract that fully contains the bbox, then runs `build`, `pmtiles`, `3dtiles`, and `package`. The source PBF cache defaults to `~/.cache/map-zero/osm`.
+`from-bbox` downloads and caches the smallest suitable Geofabrik `.osm.pbf`
+extract for the bbox, then runs `build`, `pmtiles`, `3dtiles`, and `package`.
+The selector avoids administrative extracts that only partially cover border
+areas by combining smaller sibling extracts when together they cover the bbox,
+and can reuse an already cached broader extract when it is still a reasonable
+fit. The source PBF cache defaults to `~/.cache/map-zero/osm`.
+
+For an interactive bbox workflow, start the OpenLayers bbox builder:
+
+```bash
+node src/cli.js bbox-ui --output-root ./generated
+```
+
+Open the printed URL, draw a rectangle, choose layers/export options, and start
+the build job. The UI calls the same `from-bbox` pipeline and writes the
+generated `.mapzero` folder under `--output-root`.
 
 Serve it:
 
@@ -128,7 +143,7 @@ Export Cesium-ready 3D Tiles:
 node src/cli.js 3dtiles ./madrid.mapzero
 ```
 
-Buildings are extruded into streamed Cesium tiles. The default subdivision is tuned for dense cities like Madrid; use `--max-depth` and `--max-features` only when you need coarser or finer tiles. Roads, railways, boundaries, water, landuse, and AIP/aeronautical features are exported as flat cartographic meshes when requested with `--layers`. The Cesium viewer is available at:
+Buildings are extruded into streamed Cesium tiles. The default subdivision is tuned for dense cities like Madrid; use `--max-depth` and `--max-features` only when you need coarser or finer tiles. Roads, railways, boundaries, water, landuse, and AIP/aeronautical features are exported as flat cartographic meshes when requested with `--layers`. Terrain edge overlays (`terrain`, `coastline`, `cliffs`) stay as 2D cartographic context and are not part of 3D Tiles export. The Cesium viewer is available at:
 
 ```text
 http://localhost:8080/cesium
@@ -136,8 +151,10 @@ http://localhost:8080/cesium
 
 3D Tiles are also static files. Once exported, they do not need the map-zero Node server; Cesium can load them from any normal static web server.
 
-The Cesium PMTiles context overlay uses a module worker plus `OffscreenCanvas`;
-there is no main-thread rasterization fallback.
+The PMTiles raster overlay used by Cesium and OpenLayers uses the shared
+`@map-zero/raster/imagery-worker.js` module worker plus `OffscreenCanvas`;
+there is no main-thread rasterization fallback. Use `workerUrl` in either
+viewer helper when your app copies that worker to a fingerprinted asset URL.
 
 Use `map-zero serve` to preview the Cesium output locally; use static hosting to publish the exported `3dtiles/` folder.
 
@@ -180,7 +197,7 @@ const controller = await addMapZeroToOpenLayers(map, {
 controller.setVisible('buildings', false);
 ```
 
-The helper reuses the same MVT + WebGL rendering path as the built-in viewer. It supports dynamic HTTP MVT and static vector PMTiles.
+The helper reuses the same MVT + WebGL rendering path as the built-in viewer. It supports dynamic HTTP MVT, static vector PMTiles, and optional shared-worker raster rendering.
 
 See [docs/openlayers.md](docs/openlayers.md).
 

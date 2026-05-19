@@ -59,6 +59,7 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
   const layerWriters = {};
   /** @type {Record<string, number>} */
   const featureCounts = Object.fromEntries(layers.map((layer) => [layer, 0]));
+  const seenFeatureIds = Object.fromEntries(layers.map((layer) => [layer, new Set()]));
   let closed = false;
 
   db.pragma('journal_mode = WAL');
@@ -81,6 +82,15 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
       const writer = layerWriters[layer];
       if (!writer) {
         throw new Error(`unknown GeoPackage layer: ${layer}`);
+      }
+
+      const featureId = feature.properties.id;
+      if (featureId) {
+        const seen = seenFeatureIds[layer];
+        if (seen.has(featureId)) {
+          return;
+        }
+        seen.add(featureId);
       }
 
       const values = [

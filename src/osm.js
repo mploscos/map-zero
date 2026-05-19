@@ -50,7 +50,7 @@ const { BlobParser, BlobDecompressor } = parseOsmPbf;
  *
  * This keeps `--bbox` optional while still avoiding a full in-memory node load.
  *
- * @param {string} source
+ * @param {string | string[]} source
  * @param {{ totalBytes?: number, onProgress?: (event: ProgressEvent) => void }} [options]
  * @returns {Promise<[number, number, number, number]>}
  */
@@ -129,6 +129,7 @@ export async function inferOsmBbox(source, options = {}) {
  * @returns {Promise<{ counts: Record<string, number>, tempPath: string }>}
  */
 export async function buildOsmGeoPackage(source, bbox, layers, gpkgPath, options = {}) {
+  const sources = Array.isArray(source) ? source : [source];
   const selectedLayers = new Set(layers);
   const progress = options.onProgress;
   const batchSize = options.batchSize ?? 5000;
@@ -139,9 +140,16 @@ export async function buildOsmGeoPackage(source, bbox, layers, gpkgPath, options
 
   try {
     createBuildTempSchema(temp);
-    await scanCandidateRows(source, bbox, selectedLayers, temp, options);
-    await scanRelationWayRows(source, temp, options);
-    await scanReferencedNodesAndPoints(source, bbox, selectedLayers, temp, writer, options);
+    for (const sourcePath of sources) {
+      options.onProgress?.({
+        phase: 'stage',
+        step: 'scan-source',
+        message: `Scanning OSM extract ${sourcePath}`
+      });
+      await scanCandidateRows(sourcePath, bbox, selectedLayers, temp, options);
+      await scanRelationWayRows(sourcePath, temp, options);
+      await scanReferencedNodesAndPoints(sourcePath, bbox, selectedLayers, temp, writer, options);
+    }
     await writeWayFeaturesFromTemp(temp, writer, bbox, batchSize, progress, options.debugBuild);
     await writeRelationFeaturesFromTemp(temp, writer, bbox, batchSize, progress, options.debugBuild);
 
@@ -1728,7 +1736,7 @@ function addFeatureIfInside(features, layer, geometry, bbox, entity) {
  * @returns {Geometry | null}
  */
 function buildWayGeometry(layer, way, nodes) {
-  if (layer === 'roads' || layer === 'railways') {
+  if (layer === 'roads' || layer === 'railways' || layer === 'coastline' || layer === 'cliffs') {
     return buildLineString(way.refs, nodes);
   }
 
@@ -1777,6 +1785,10 @@ function buildAviationWayGeometry(way, nodes) {
  */
 function buildRelationGeometry(layer, relation, relationWays, candidateWays, nodes) {
   const multipolygon = buildRelationMultiPolygon(relation, relationWays, candidateWays, nodes);
+
+  if (layer === 'coastline' || layer === 'cliffs') {
+    return multipolygon ?? buildRelationMultiLineString(relation, relationWays, candidateWays, nodes);
+  }
 
   if (multipolygon || (layer !== 'boundaries' && layer !== 'pois')) {
     return multipolygon;

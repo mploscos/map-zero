@@ -5,7 +5,10 @@
   "background": "#000000",
   "drawOrder": [
     "landuse",
+    "terrain",
     "water",
+    "coastline",
+    "cliffs",
     "aip",
     "railways",
     "roads",
@@ -66,6 +69,90 @@
         "color": "#00b7ff",
         "width": 0.8,
         "opacity": 0.85
+      }
+    },
+    "terrain": {
+      "visible": true,
+      "order": 180,
+      "minZoom": 6,
+      "maxZoom": 22,
+      "fill": "#5f5c52",
+      "fillOpacity": 0.12,
+      "stroke": "#8a8170",
+      "strokeWidth": 0.35,
+      "strokeOpacity": 0.18,
+      "visibility": {
+        "visible": true,
+        "minZoom": 6,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#9d8756",
+        "width": 0.35,
+        "opacity": 0.18
+      },
+      "byProperty": {
+        "natural": {
+          "beach": {
+            "fill": "#b8b000",
+            "fillOpacity": 0.3,
+            "stroke": "#d8cf26",
+            "strokeOpacity": 0.4
+          },
+          "sand": {
+            "fill": "#655f48",
+            "fillOpacity": 0.13,
+            "strokeOpacity": 0.15
+          }
+        }
+      }
+    },
+    "coastline": {
+      "visible": true,
+      "order": 240,
+      "minZoom": 5,
+      "maxZoom": 22,
+      "stroke": "#35cfff",
+      "strokeWidth": 0.65,
+      "strokeOpacity": 0.72,
+      "lineCap": "round",
+      "lineJoin": "round",
+      "glow": {
+        "enabled": true,
+        "color": "#00b7ff",
+        "width": 2.2,
+        "opacity": 0.1
+      },
+      "visibility": {
+        "visible": true,
+        "minZoom": 5,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#35cfff",
+        "width": 0.65,
+        "opacity": 0.72
+      }
+    },
+    "cliffs": {
+      "visible": true,
+      "order": 260,
+      "minZoom": 9,
+      "maxZoom": 22,
+      "stroke": "#6e9fad",
+      "strokeWidth": 0.65,
+      "strokeOpacity": 0.5,
+      "lineCap": "round",
+      "lineJoin": "round",
+      "visibility": {
+        "visible": true,
+        "minZoom": 9,
+        "maxZoom": 22
+      },
+      "body": {
+        "color": "#6e9fad",
+        "width": 0.65,
+        "opacity": 0.5
       }
     },
     "railways": {
@@ -163,7 +250,7 @@
       "casing": {
         "enabled": true,
         "color": "#063a46",
-        "width": 1.9,
+        "width": 1.5,
         "opacity": 1
       },
       "centerLine": {
@@ -4675,7 +4762,7 @@
     },
     "aip": {
       "enabled": true,
-      "minZoom": 12,
+      "minZoom": 9,
       "fields": [
         "ref",
         "name"

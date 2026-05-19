@@ -152,6 +152,7 @@ export function createViewerHtml(options = {}) {
           manifestUrl: '/manifest.json',
           manifest,
           style: 'default',
+          ...readRenderOptions(),
           onTileLoadStart() {
             loadingTiles += 1;
             updateStatus();
@@ -206,6 +207,16 @@ export function createViewerHtml(options = {}) {
             : 'tiles: ready';
         const layerLines = [...layerStatus.entries()].map(([layer, status]) => layer + ': ' + status);
         statusEl.textContent = [tileStatus, ...layerLines].join('\\n');
+      }
+
+      function readRenderOptions() {
+        const params = new URLSearchParams(window.location.search);
+        const render = params.get('render');
+        const options = {};
+        if (render === 'raster' || render === 'raster-worker') {
+          options.renderMode = 'raster-worker';
+        }
+        return options;
       }
 
       function centerOfBbox(bbox) {

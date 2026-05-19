@@ -10,7 +10,7 @@ import { createNeonDarkStyle } from './style.js';
  * Build a .mapzero package folder from an OSM PBF source.
  *
  * @param {{
- *   source: string,
+ *   source: string | string[],
  *   bbox?: [number, number, number, number],
  *   layers: string[],
  *   out: string,
@@ -32,7 +32,7 @@ import { createNeonDarkStyle } from './style.js';
  * @returns {Promise<{ outDir: string, counts: Record<string, number> }>}
  */
 export async function buildPackage(options) {
-  const source = resolve(options.source);
+  const sources = (Array.isArray(options.source) ? options.source : [options.source]).map((source) => resolve(source));
   const outDir = resolve(options.out);
   const stylesDir = join(outDir, 'styles');
   const gpkgPath = join(outDir, 'data.gpkg');
@@ -43,11 +43,14 @@ export async function buildPackage(options) {
     step: 'validate',
     message: 'Validating input and preparing output folder'
   });
-  const sourceStat = await assertReadableFile(source);
+  const sourceStats = [];
+  for (const source of sources) {
+    sourceStats.push(await assertReadableFile(source));
+  }
   await fs.mkdir(stylesDir, { recursive: true });
 
-  const bbox = options.bbox ?? await inferOsmBbox(source, {
-    totalBytes: sourceStat.size,
+  const bbox = options.bbox ?? await inferOsmBbox(sources[0], {
+    totalBytes: sourceStats[0]?.size,
     onProgress: options.onProgress
   });
 
@@ -56,8 +59,8 @@ export async function buildPackage(options) {
     step: 'write-gpkg',
     message: 'Writing GeoPackage'
   });
-  const buildResult = await buildOsmGeoPackage(source, bbox, layers, gpkgPath, {
-    totalBytes: sourceStat.size,
+  const buildResult = await buildOsmGeoPackage(sources, bbox, layers, gpkgPath, {
+    totalBytes: sourceStats.reduce((total, stat) => total + stat.size, 0),
     batchSize: options.batchSize,
     keepTemp: options.keepTemp,
     tempPath: join(outDir, '.mapzero-build-tmp.sqlite'),

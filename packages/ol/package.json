@@ -1,11 +1,28 @@
 {
   "name": "@map-zero/ol",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "description": "OpenLayers integration helper for map-zero packages.",
+  "license": "MIT",
+  "homepage": "https://github.com/mploscos/map-zero#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mploscos/map-zero.git",
+    "directory": "packages/ol"
+  },
+  "bugs": {
+    "url": "https://github.com/mploscos/map-zero/issues"
+  },
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "dependencies": {
+    "@map-zero/raster": "0.3.0"
   },
   "peerDependencies": {
     "ol": "^10.9.0",

@@ -163,7 +163,7 @@ export async function createMapZeroCesiumTilesets(options) {
  *   contextOpacity?: number,
  *   contextOverzoomLevels?: number,
  *   contextEdgeGuardPixels?: number,
- *   contextWorkerUrl?: string | URL,
+ *   workerUrl?: string | URL,
  *   buildings3d?: boolean,
  *   tilesetMaximumScreenSpaceError?: number,
  *   tilesetCacheBytes?: number,
@@ -205,7 +205,7 @@ export async function addMapZeroToCesium(viewer, options) {
         layers: contextOverlayConfig(result.manifest)?.layers,
         overzoomLevels: options.contextOverzoomLevels,
         edgeGuardPixels: options.contextEdgeGuardPixels,
-        workerUrl: options.contextWorkerUrl
+        workerUrl: options.workerUrl
       })
     : undefined;
   const imageryLayer = imageryProvider

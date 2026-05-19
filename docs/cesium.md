@@ -43,6 +43,8 @@ Non-building layers are exported as flat cartographic meshes:
 - landuse, water, and AIP/aeronautical polygons become flat indexed surfaces
 - AIP points such as helipads can become small flat markers
 
+Terrain edge overlays (`terrain`, `coastline`, `cliffs`) are rendered through the 2D context overlay/imagery path. They are not exported as 3D Tiles geometry.
+
 ## Scene Configuration
 
 The helper does not change global Cesium scene settings by default. Applications control terrain, fog, atmosphere, lighting, and background.
@@ -61,18 +63,18 @@ The Cesium PMTiles context overlay rasterizes in a module worker with
 `OffscreenCanvas`. Browsers must support `Worker`, `OffscreenCanvas`, and
 `createImageBitmap`; there is no main-thread rasterization fallback.
 
-The worker is exported as `@map-zero/cesium/imagery-worker.js`. Most bundlers
+The worker is exported as `@map-zero/raster/imagery-worker.js`. Most bundlers
 can copy or fingerprint that file and pass the final URL to the helper:
 
 ```js
 await addMapZeroToCesium(viewer, {
   manifestUrl: './huelva.mapzero/manifest.json',
-  contextWorkerUrl: new URL('@map-zero/cesium/imagery-worker.js', import.meta.url)
+  workerUrl: new URL('@map-zero/raster/imagery-worker.js', import.meta.url)
 });
 ```
 
 If your framework uses a different asset convention, resolve the worker however
-that framework expects and pass the resulting URL as `contextWorkerUrl`.
+that framework expects and pass the resulting URL as `workerUrl`.
 
 You can also provide your own scene hook:
 

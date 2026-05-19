@@ -4,10 +4,18 @@ import {
   WebMercatorTilingScheme
 } from 'cesium';
 
-const DEFAULT_CONTEXT_LAYERS = ['roads', 'railways', 'water', 'landuse', 'boundaries', 'aviation', 'pois'];
+import { WEB_MERCATOR_MAX_LAT } from '../../raster/src/shared/geo.js';
+import {
+  DEFAULT_CONTEXT_LAYERS,
+  layerAlias,
+  normalizeContextLayers,
+  sourceLayerFor
+} from '../../raster/src/shared/layers.js';
+import { pmtilesInfo } from '../../raster/src/shared/manifest.js';
+import { clampInteger } from '../../raster/src/shared/math.js';
+
+const DEFAULT_WORKER_URL = new URL('@map-zero/raster/imagery-worker.js', import.meta.url);
 const TILE_SIZE = 512;
-const WEB_MERCATOR_MAX = 20037508.342789244;
-const WEB_MERCATOR_MAX_LAT = 85.05112878;
 
 /**
  * Cesium ImageryProvider that rasterizes map-zero PMTiles/MVT tiles in a
@@ -25,7 +33,7 @@ export class MapZeroCesiumImageryProvider {
    *   minimumLevel?: number,
    *   maximumLevel?: number,
    *   overzoomLevels?: number,
-   *   edgeGuardPixels?: number
+   *   edgeGuardPixels?: number,
    *   workerUrl?: string | URL
    * }} options
    */
@@ -63,7 +71,7 @@ export class MapZeroCesiumImageryProvider {
     this.nextRequestId = 1;
     this.metrics = createImageryMetrics();
     this.worker = new Worker(
-      options.workerUrl ?? new URL('./imagery-worker.js', import.meta.url),
+      options.workerUrl ?? DEFAULT_WORKER_URL,
       { type: 'module' }
     );
     this.worker.addEventListener('message', (event) => this.#handleWorkerMessage(event.data));
@@ -219,7 +227,7 @@ function mergeWorkerMetrics(target, patch) {
 
 /**
  * @param {Record<string, unknown>} manifest
- * @returns {{ type?: string, source?: string, layers?: string[], overzoomLevels?: number, edgeGuardPixels?: number } | null}
+ * @returns {{ type?: string, source?: string, layers?: string[], backend?: string, overzoomLevels?: number, edgeGuardPixels?: number } | null}
  */
 export function contextOverlayConfig(manifest) {
   const pmtiles = pmtilesInfo(manifest);
@@ -245,95 +253,6 @@ function contextLayerIds(manifest) {
     ? manifest.layers.map(String).filter((layerId) => layerId !== 'buildings')
     : [];
   return layers.length > 0 ? layers : DEFAULT_CONTEXT_LAYERS;
-}
-
-function getLayerRule(styleDocument, layer) {
-  const layers = styleDocument.layers && typeof styleDocument.layers === 'object' ? styleDocument.layers : {};
-  const id = layer.style || layer.id;
-  return normalizeStyleRule(layers[id] || layers[layerAlias(id)] || {});
-}
-
-function normalizeStyleRule(rule) {
-  const normalized = { ...rule };
-  const visibility = objectRule(rule.visibility);
-  const body = objectRule(rule.body);
-  const center = objectRule(rule.center);
-  if (visibility) {
-    normalized.visible = visibility.visible ?? normalized.visible;
-    normalized.minZoom = visibility.minZoom ?? normalized.minZoom;
-    normalized.maxZoom = visibility.maxZoom ?? normalized.maxZoom;
-  }
-  if (body) {
-    normalized.stroke = body.color ?? normalized.stroke;
-    normalized.strokeWidth = body.width ?? normalized.strokeWidth;
-    normalized.strokeOpacity = body.opacity ?? normalized.strokeOpacity;
-    normalized.lineCap = body.lineCap ?? normalized.lineCap;
-    normalized.lineJoin = body.lineJoin ?? normalized.lineJoin;
-    normalized.widthScale = body.widthScale ?? normalized.widthScale;
-  }
-  if (center) {
-    normalized.fill = center.color ?? normalized.fill;
-    normalized.fillOpacity = center.opacity ?? normalized.fillOpacity;
-  }
-  if (!normalized.lineCap) normalized.lineCap = 'round';
-  if (!normalized.lineJoin) normalized.lineJoin = 'round';
-  return normalized;
-}
-
-function mergeFeatureRule(rule, feature) {
-  let merged = { ...rule };
-  const byProperty = objectRule(rule.byProperty);
-  if (!byProperty) return merged;
-  for (const [property, values] of Object.entries(byProperty)) {
-    const value = String(feature.get(property) ?? '');
-    const override = objectRule(values?.[value]);
-    if (override) {
-      merged = normalizeStyleRule({ ...merged, ...override });
-    }
-  }
-  return merged;
-}
-
-function zoomMatchesRule(zoom, rule) {
-  if (Number.isFinite(rule.minZoom) && zoom < Number(rule.minZoom)) return false;
-  if (Number.isFinite(rule.maxZoom) && zoom > Number(rule.maxZoom)) return false;
-  return rule.visible !== false;
-}
-
-function styleWidth(value, fallback, layerId, zoom) {
-  const width = Number(Array.isArray(value) ? fallback : value);
-  const base = Number.isFinite(width) && width > 0 ? width : fallback;
-  const scale = layerId === 'roads' ? Math.max(0.65, Math.min(1.35, 0.72 + zoom * 0.035)) : 1;
-  return Math.max(0, base * scale);
-}
-
-function geometryTypeKind(type) {
-  if (type === 'Point' || type === 'MultiPoint') return 'point';
-  if (type === 'Polygon' || type === 'MultiPolygon') return 'polygon';
-  return 'line';
-}
-
-function tileMercatorExtent(x, y, z) {
-  const tiles = 2 ** z;
-  const span = (WEB_MERCATOR_MAX * 2) / tiles;
-  const minX = -WEB_MERCATOR_MAX + x * span;
-  const maxX = minX + span;
-  const maxY = WEB_MERCATOR_MAX - y * span;
-  const minY = maxY - span;
-  return [minX, minY, maxX, maxY];
-}
-
-function sourceTileForRequest(x, y, z, maxZoom) {
-  const sourceZ = Math.min(z, maxZoom);
-  if (sourceZ === z) {
-    return { x, y, z };
-  }
-  const shift = z - sourceZ;
-  return {
-    x: Math.floor(x / 2 ** shift),
-    y: Math.floor(y / 2 ** shift),
-    z: sourceZ
-  };
 }
 
 function rectangleFromManifestBbox(manifest, bbox) {
@@ -381,54 +300,6 @@ function imageToCanvas(image, width, height) {
   return canvas;
 }
 
-function clearCanvasBorder(ctx, width, height, pixels) {
-  if (!(pixels > 0)) return;
-  ctx.clearRect(0, 0, width, pixels);
-  ctx.clearRect(0, height - pixels, width, pixels);
-  ctx.clearRect(0, 0, pixels, height);
-  ctx.clearRect(width - pixels, 0, pixels, height);
-}
-
-function pmtilesInfo(manifest) {
-  const tiles = manifest.tiles && typeof manifest.tiles === 'object' ? manifest.tiles : {};
-  if (tiles.format === 'pmtiles' || tiles.type === 'mvt') {
-    return tiles;
-  }
-  const vector = manifest.vectorTiles && typeof manifest.vectorTiles === 'object' ? manifest.vectorTiles : {};
-  const pmtiles = vector.pmtiles && typeof vector.pmtiles === 'object' ? vector.pmtiles : {};
-  return pmtiles;
-}
-
-function normalizeContextLayers(layers) {
-  const values = Array.isArray(layers) && layers.length > 0 ? layers : DEFAULT_CONTEXT_LAYERS;
-  return values.map((layer) => sourceLayerFor(String(layer)));
-}
-
-function isLayerVisible(layerVisibility, layer) {
-  const direct = layerVisibility.get(layer);
-  if (direct != null) return direct;
-  const source = layerVisibility.get(sourceLayerFor(layer));
-  if (source != null) return source;
-  const alias = layerVisibility.get(layerAlias(layer));
-  return alias === true;
-}
-
-function sourceLayerFor(layer) {
-  return layer === 'aviation' ? 'aip' : layer;
-}
-
-function layerAlias(layer) {
-  if (layer === 'aip') return 'aviation';
-  if (layer === 'aviation') return 'aip';
-  return layer;
-}
-
 function resolveWorkerBaseUrl(url) {
   return new URL(url, globalThis.location?.href ?? 'http://localhost/').toString();
-}
-
-function clampInteger(value, min, max) {
-  const number = Math.trunc(Number(value));
-  if (!Number.isFinite(number)) return min;
-  return Math.max(min, Math.min(max, number));
 }

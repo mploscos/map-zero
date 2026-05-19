@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- Moved the PMTiles/MVT raster worker to shared `@map-zero/raster`.
+- Unified Cesium and OpenLayers worker asset configuration on `workerUrl`.
+- Added an OpenLayers `bbox-ui` command for drawing a bbox and launching a full
+  local `from-bbox` build job.
+- Improved Geofabrik bbox extract selection for border-crossing areas, smaller
+  sibling extract combinations, and cached PBF reuse.
+- Added subtle 2D terrain edge overlays for OSM `natural=coastline`,
+  `natural=beach`, `natural=sand`, and `natural=cliff`.
+
 ## 0.2.2
 
 - Added Cesium 3D Tiles streaming options for building tilesets and raised the default building cache budget.

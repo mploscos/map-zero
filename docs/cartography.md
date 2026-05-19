@@ -15,6 +15,16 @@ The default 2D style uses:
 
 This keeps roads visually connected without topology merging.
 
+## Terrain Edges
+
+Terrain context is intentionally sparse and supports infrastructure readability rather than becoming a full terrain map.
+
+- `coastline`: OSM `natural=coastline`, drawn as a thin cyan shoreline without labels.
+- `terrain`: OSM `natural=beach` and `natural=sand`, drawn as low-opacity amber/gray fills to separate land and sea subtly.
+- `cliffs`: OSM `natural=cliff`, drawn as a thin gray/cyan line for sharper coastal or terrain definition.
+
+These overlays are included in GeoPackage, dynamic MVT, PMTiles, OpenLayers, and Cesium raster context rendering. They are intentionally excluded from 3D Tiles export.
+
 ## Labels
 
 OpenLayers labels are optional and sparse by default:

@@ -40,6 +40,7 @@ const GEOFABRIK_INDEX_URL = 'https://download.geofabrik.de/index-v1.json';
  * @returns {Promise<{
  *   outDir: string,
  *   source: { name: string, id: string, url: string, path: string },
+ *   sources: Array<{ name: string, id: string, url: string, path: string }>,
  *   counts: Record<string, number>,
  *   pmtiles?: Awaited<ReturnType<typeof exportPmtiles>>,
  *   tiles3d?: Awaited<ReturnType<typeof export3dTiles>>,
@@ -50,21 +51,27 @@ export async function createPackageFromBbox(options) {
   const bbox = options.bbox;
   const outDir = resolve(options.out);
   const cacheDir = resolve(options.cacheDir ?? join(homedir(), '.cache', 'map-zero', 'osm'));
-  const provider = await findGeofabrikExtract(bbox, {
+  const providers = await findGeofabrikExtracts(bbox, {
     cacheDir,
     indexUrl: options.providerIndexUrl
   });
 
-  options.onStage?.(`Using OSM extract: ${provider.name} (${provider.id})`);
-  const sourcePath = await downloadExtract(provider, {
-    cacheDir,
-    forceDownload: Boolean(options.forceDownload),
-    onStage: options.onStage
-  });
+  options.onStage?.(`Using ${providers.length} OSM extract${providers.length === 1 ? '' : 's'}: ${providers.map((provider) => provider.id).join(', ')}`);
+  const sources = [];
+  for (const provider of providers) {
+    sources.push({
+      provider,
+      path: await downloadExtract(provider, {
+        cacheDir,
+        forceDownload: Boolean(options.forceDownload),
+        onStage: options.onStage
+      })
+    });
+  }
 
   options.onStage?.('Building map-zero package');
   const build = await buildPackage({
-    source: sourcePath,
+    source: sources.map((source) => source.path),
     bbox,
     layers: options.layers,
     out: outDir,
@@ -111,11 +118,17 @@ export async function createPackageFromBbox(options) {
   return {
     outDir,
     source: {
-      name: provider.name,
-      id: provider.id,
-      url: provider.url,
-      path: sourcePath
+      name: sources[0].provider.name,
+      id: sources[0].provider.id,
+      url: sources[0].provider.url,
+      path: sources[0].path
     },
+    sources: sources.map((source) => ({
+      name: source.provider.name,
+      id: source.provider.id,
+      url: source.provider.url,
+      path: source.path
+    })),
     counts: build.counts,
     pmtiles,
     tiles3d,
@@ -127,17 +140,27 @@ export async function createPackageFromBbox(options) {
  * @param {[number, number, number, number]} bbox
  * @param {{ cacheDir: string, indexUrl?: string }} options
  */
-async function findGeofabrikExtract(bbox, options) {
+export async function findGeofabrikExtract(bbox, options) {
+  return (await findGeofabrikExtracts(bbox, options))[0];
+}
+
+/**
+ * @param {[number, number, number, number]} bbox
+ * @param {{ cacheDir: string, indexUrl?: string }} options
+ */
+export async function findGeofabrikExtracts(bbox, options) {
   const index = await loadGeofabrikIndex(options.cacheDir, options.indexUrl ?? GEOFABRIK_INDEX_URL);
   const features = Array.isArray(index.features) ? index.features : [];
-  const candidates = features
+  const normalizedFeatures = features
     .map(normalizeGeofabrikFeature)
     .filter(Boolean)
+    .filter((feature) => bboxIntersectsBbox(bbox, feature.bbox));
+  const candidates = await Promise.all(normalizedFeatures
     .filter((feature) => bboxInsideFeature(bbox, feature))
-    .sort((a, b) => featureArea(a) - featureArea(b));
+    .map((feature) => annotateCachedExtract(feature, options.cacheDir)));
 
-  const selected = candidates[0];
-  if (!selected) {
+  const selected = await selectGeofabrikCandidates(candidates, normalizedFeatures, bbox, options.cacheDir);
+  if (selected.length === 0) {
     throw new Error(`no Geofabrik extract fully contains bbox ${formatBbox(bbox)}`);
   }
   return selected;
@@ -173,9 +196,94 @@ function normalizeGeofabrikFeature(feature) {
     id,
     name,
     url,
+    parent: typeof properties.parent === 'string' ? properties.parent : null,
+    adminCodes: adminCodesFromProperties(properties),
     geometry: feature.geometry,
     bbox: geometryBbox(feature.geometry)
   };
+}
+
+function adminCodesFromProperties(properties) {
+  const value = properties['iso3166-2'];
+  return (Array.isArray(value) ? value : [value])
+    .filter((value) => typeof value === 'string');
+}
+
+async function annotateCachedExtract(feature, cacheDir) {
+  const fileName = safeFileName(basename(new URL(feature.url).pathname) || `${feature.id}.osm.pbf`);
+  const filePath = join(cacheDir, fileName);
+  const stat = await fs.stat(filePath).catch(() => null);
+  return {
+    ...feature,
+    cached: Boolean(stat?.isFile() && stat.size > 0),
+    path: filePath
+  };
+}
+
+async function selectGeofabrikCandidates(candidates, features, bbox, cacheDir) {
+  const sorted = [...candidates].sort((a, b) => featureArea(a) - featureArea(b));
+  const smallest = sorted[0];
+  if (!smallest) return [];
+  const combined = await combinedAdministrativeCandidates(features, bbox, cacheDir);
+  if (combined.length > 1 && combined.length <= 4) {
+    return combined;
+  }
+
+  const boundarySafe = boundarySafeCandidate(sorted, features, bbox, smallest);
+
+  const smallestArea = featureArea(boundarySafe);
+  const cached = sorted
+    .filter((candidate) => featureArea(candidate) >= smallestArea)
+    .filter((candidate) => candidate.cached)
+    .filter((candidate) => featureArea(candidate) <= smallestArea * 6)
+    .sort((a, b) => featureArea(a) - featureArea(b))[0];
+
+  return [cached ?? boundarySafe];
+}
+
+async function combinedAdministrativeCandidates(features, bbox, cacheDir) {
+  const samples = bboxSamplePoints(bbox);
+  const groups = new Map();
+  for (const feature of features) {
+    if (!feature.parent || !feature.adminCodes?.length) continue;
+    if (!samples.some((point) => pointInGeometry(point, feature.geometry))) continue;
+    if (!groups.has(feature.parent)) groups.set(feature.parent, []);
+    groups.get(feature.parent).push(feature);
+  }
+
+  const plans = [];
+  for (const group of groups.values()) {
+    const relevant = group
+      .filter((feature) => samples.some((point) => pointInGeometry(point, feature.geometry)))
+      .sort((a, b) => featureArea(a) - featureArea(b));
+    const covered = samples.every((point) => relevant.some((feature) => pointInGeometry(point, feature.geometry)));
+    if (covered && relevant.length > 1) {
+      plans.push(relevant);
+    }
+  }
+
+  const best = plans
+    .sort((a, b) => a.reduce((total, item) => total + featureArea(item), 0) - b.reduce((total, item) => total + featureArea(item), 0))[0];
+  return best ? Promise.all(best.map((feature) => annotateCachedExtract(feature, cacheDir))) : [];
+}
+
+function boundarySafeCandidate(candidates, features, bbox, selected) {
+  if (!selected.adminCodes?.length || !selected.parent) {
+    return selected;
+  }
+
+  const siblingAdministrativeOverlap = features.some((feature) =>
+    feature.id !== selected.id &&
+    feature.parent === selected.parent &&
+    feature.adminCodes?.length > 0 &&
+    bboxIntersectsBbox(bbox, feature.bbox) &&
+    bboxSamplePoints(bbox).some((point) => pointInGeometry(point, feature.geometry))
+  );
+  if (!siblingAdministrativeOverlap) {
+    return selected;
+  }
+
+  return candidates.find((candidate) => !candidate.adminCodes?.length) ?? selected;
 }
 
 async function downloadExtract(provider, options) {
@@ -211,7 +319,7 @@ function bboxInsideFeature(bbox, feature) {
   if (feature.bbox && !bboxInsideBbox(bbox, feature.bbox)) {
     return false;
   }
-  return bboxCorners(bbox).every((point) => pointInGeometry(point, feature.geometry));
+  return bboxSamplePoints(bbox).every((point) => pointInGeometry(point, feature.geometry));
 }
 
 function bboxInsideBbox(inner, outer) {
@@ -221,13 +329,26 @@ function bboxInsideBbox(inner, outer) {
     inner[3] <= outer[3];
 }
 
-function bboxCorners(bbox) {
-  return [
-    [bbox[0], bbox[1]],
-    [bbox[0], bbox[3]],
-    [bbox[2], bbox[1]],
-    [bbox[2], bbox[3]]
-  ];
+function bboxIntersectsBbox(a, b) {
+  return Boolean(a && b) &&
+    a[0] <= b[2] &&
+    a[2] >= b[0] &&
+    a[1] <= b[3] &&
+    a[3] >= b[1];
+}
+
+function bboxSamplePoints(bbox) {
+  const [minLon, minLat, maxLon, maxLat] = bbox;
+  const points = [];
+  for (const lonFactor of [0, 0.25, 0.5, 0.75, 1]) {
+    for (const latFactor of [0, 0.25, 0.5, 0.75, 1]) {
+      points.push([
+        minLon + (maxLon - minLon) * lonFactor,
+        minLat + (maxLat - minLat) * latFactor
+      ]);
+    }
+  }
+  return points;
 }
 
 function pointInGeometry(point, geometry) {

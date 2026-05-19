@@ -12,7 +12,7 @@
 - `src/cli.js`: command wiring, argument parsing, terminal progress output.
 - `src/build.js`: package build orchestration and output folder creation.
 - `src/osm.js`: streamed OSM PBF scan, temporary SQLite build store, geometry extraction.
-- `src/layers.js`: logical layer definitions, OSM tag matching, layer property normalization.
+- `src/layers.js`: logical layer definitions, OSM tag matching, layer property normalization, including subtle 2D terrain edge overlays for coastline, beach/sand, and cliffs.
 - `src/gpkg.js`: GeoPackage creation and incremental feature writes.
 - `src/gpkg-read.js`: readonly GeoPackage metadata and tile feature queries.
 - `src/geometry-read.js`: GeoPackage binary geometry decoding.
@@ -42,6 +42,8 @@ Dynamic serving and PMTiles export both call the same `src/mvt.js` tile generati
 
 The Cesium export currently favors top-down cartographic fidelity over street-level realism. Roads and other line layers are converted to flat surfaces rather than GPU-only line primitives so the output is portable 3D Tiles geometry.
 
+Terrain edge overlays (`terrain`, `coastline`, `cliffs`) remain in the 2D cartographic context pipeline and are intentionally not part of 3D Tiles export.
+
 ## Style And Rendering
 
 - `src/style-presets.js`: full preset loading and layer filtering.
@@ -53,6 +55,7 @@ The Cesium export currently favors top-down cartographic fidelity over street-le
 - `packages/ol/src/index.js`: framework-agnostic OpenLayers layer helper.
 - `packages/ol/src/labels.js`: optional OpenLayers text label layer.
 - `packages/cesium/src/index.js`: framework-agnostic Cesium helper.
+- `packages/raster/src/imagery-worker.js`: shared PMTiles/MVT raster worker used by Cesium overlays and OpenLayers raster mode.
 - `src/html.js`: built-in OpenLayers and Cesium viewer shells.
 
 ## Package Layout

@@ -82,6 +82,20 @@ await addMapZeroToOpenLayers(map, {
 
 Shared style objects are treated as readonly.
 
+## Raster Worker
+
+The optional `renderMode: 'raster-worker'` path uses the shared
+`@map-zero/raster/imagery-worker.js` worker. Pass `workerUrl` when your bundler
+copies or fingerprints worker assets:
+
+```js
+await addMapZeroToOpenLayers(map, {
+  manifestUrl: './madrid.mapzero/manifest.json',
+  renderMode: 'raster-worker',
+  workerUrl: new URL('@map-zero/raster/imagery-worker.js', import.meta.url)
+});
+```
+
 ## Controller
 
 ```js

@@ -9,6 +9,7 @@ import { exportPmtiles } from './export-pmtiles.js';
 import { createPackageFromBbox } from './from-bbox.js';
 import { LAYER_ALIASES, SUPPORTED_LAYERS } from './layers.js';
 import { packageMapZero } from './package.js';
+import { serveBboxBuilder } from './bbox-server.js';
 import { serveMapZero } from './server.js';
 import { availableStylePresets, availableStyleThemes, writePackageStyle } from './style-command.js';
 import { parseBbox, parseLayerList } from './utils.js';
@@ -18,7 +19,7 @@ const program = new Command();
 program
   .name('map-zero')
   .description('Build and serve lightweight offline vector map packages from OSM PBF data.')
-  .version('0.1.0');
+  .version('0.3.0');
 
 program
   .command('build')
@@ -108,7 +109,9 @@ program
       buildProgress.finish();
 
       console.log(`Built ${result.outDir}`);
-      console.log(`  source: ${result.source.name} (${result.source.path})`);
+      for (const source of result.sources ?? [result.source]) {
+        console.log(`  source: ${source.name} (${source.path})`);
+      }
       for (const [layer, count] of Object.entries(result.counts)) {
         console.log(`  ${layer}: ${count}`);
       }
@@ -244,6 +247,33 @@ program
       console.log(`  input size: ${formatBytes(result.inputBytes)}`);
       console.log(`  zip size: ${formatBytes(result.outputBytes)}`);
       console.log(`  data.gpkg: ${result.includedGpkg ? 'included' : 'excluded'}`);
+    } catch (error) {
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('bbox-ui')
+  .description('Open an OpenLayers bbox builder that can generate complete map-zero packages.')
+  .option('--port <port>', 'HTTP port', parsePortOption, 8090)
+  .option('--host <host>', 'HTTP host', '127.0.0.1')
+  .option('--output-root <dir>', 'directory where generated .mapzero folders are written', process.cwd())
+  .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
+  .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
+  .action(async (options) => {
+    try {
+      const result = await serveBboxBuilder({
+        host: options.host,
+        port: options.port,
+        outputRoot: options.outputRoot,
+        cacheDir: options.cacheDir,
+        providerIndexUrl: options.providerIndexUrl
+      });
+
+      console.log(`Serving bbox builder`);
+      console.log(`Open ${result.url}`);
+      console.log(`Output root: ${options.outputRoot}`);
     } catch (error) {
       console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;

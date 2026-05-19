@@ -7,6 +7,10 @@ import VectorTileSource from 'ol/source/VectorTile.js';
 import { createXYZ } from 'ol/tilegrid.js';
 import { PMTiles } from 'pmtiles';
 
+import { isAipLayer, layerAlias } from '../../raster/src/shared/layers.js';
+import { pmtilesInfo } from '../../raster/src/shared/manifest.js';
+import { clampInteger, clampNumber } from '../../raster/src/shared/math.js';
+
 import {
   activeLabelLayerIdsForZoom,
   createMapZeroLabelLayer,
@@ -14,6 +18,35 @@ import {
 } from './labels.js';
 
 let autoInstanceCounter = 0;
+
+const ROAD_HIGHWAY_DRAW_ORDER = [
+  'platform',
+  'corridor',
+  'steps',
+  'footway',
+  'cycleway',
+  'path',
+  'track',
+  'service',
+  'construction',
+  'proposed',
+  'living_street',
+  'pedestrian',
+  'road',
+  'unclassified',
+  'residential',
+  'busway',
+  'tertiary_link',
+  'tertiary',
+  'secondary_link',
+  'secondary',
+  'primary_link',
+  'primary',
+  'trunk_link',
+  'trunk',
+  'motorway_link',
+  'motorway'
+];
 
 /**
  * @typedef {{
@@ -25,7 +58,6 @@ let autoInstanceCounter = 0;
  *   source?: 'auto' | 'pmtiles' | 'dynamic',
  *   renderMode?: 'vector' | 'raster-worker',
  *   workerUrl?: string | URL,
- *   rasterWorkerUrl?: string | URL,
  *   rasterPixelRatio?: number,
  *   overzoomLevels?: number,
  *   edgeGuardPixels?: number,
@@ -208,7 +240,7 @@ function createRasterWorkerController(context, options) {
     manifestUrl: context.manifestUrl,
     styleDocument: context.styleDocument,
     layers: context.orderedLayers.map((layer) => layer.id),
-    workerUrl: options.rasterWorkerUrl ?? options.workerUrl ?? new URL('@map-zero/cesium/imagery-worker.js', import.meta.url),
+    workerUrl: options.workerUrl ?? new URL('@map-zero/raster/imagery-worker.js', import.meta.url),
     rasterPixelRatio: options.rasterPixelRatio,
     overzoomLevels: options.overzoomLevels,
     edgeGuardPixels: options.edgeGuardPixels
@@ -244,7 +276,7 @@ function createRasterWorkerController(context, options) {
 
   const refresh = () => {
     worker.setVisibleLayers(context.layerVisibility);
-    source.clear();
+    refreshRasterSource(source);
     layer.changed();
   };
 
@@ -269,11 +301,16 @@ function createRasterWorkerController(context, options) {
       layer.setOpacity(clamp(Number(opacity), 0, 1));
     },
     destroy() {
-      source.clear();
+      refreshRasterSource(source);
       worker.destroy();
       layer.dispose();
     }
   };
+}
+
+function refreshRasterSource(source) {
+  source.clear();
+  source.refresh?.();
 }
 
 class MapZeroRasterTileWorker {
@@ -283,10 +320,10 @@ class MapZeroRasterTileWorker {
    *   manifestUrl: string,
    *   styleDocument: Record<string, unknown>,
    *   layers: string[],
- *   workerUrl: string | URL,
- *   rasterPixelRatio?: number,
- *   overzoomLevels?: number,
- *   edgeGuardPixels?: number
+   *   workerUrl: string | URL,
+   *   rasterPixelRatio?: number,
+   *   overzoomLevels?: number,
+   *   edgeGuardPixels?: number
    * }} options
    */
   constructor(options) {
@@ -964,9 +1001,52 @@ function createWebGlStyles(context) {
 function createRoadStyleRules(filter, rule, layerOpacity) {
   return [
     ...createRoadSemanticUnderlayRules(filter, rule, layerOpacity),
-    ...createLayerStyleRules(filter, rule, 'line', 'roads', layerOpacity),
+    ...createRoadPriorityStyleRules(filter, rule, layerOpacity),
     ...createRoadSemanticOverlayRules(filter, rule, layerOpacity)
   ];
+}
+
+/**
+ * Draw road classes from least important to most important so local/darker
+ * roads stay below brighter major roads at intersections.
+ *
+ * @param {unknown[]} filter
+ * @param {Record<string, unknown>} rule
+ * @param {Map<string, number>} layerOpacity
+ * @returns {Array<{ filter: unknown[], style: Record<string, unknown> }>}
+ */
+function createRoadPriorityStyleRules(filter, rule, layerOpacity) {
+  const highwayRules = roadHighwayRules(rule);
+  if (!highwayRules) {
+    return createLayerStyleRules(filter, rule, 'line', 'roads', layerOpacity);
+  }
+
+  const entries = [];
+  const orderedHighways = orderedRoadHighwayValues(highwayRules);
+  const baseRule = removeStylePropertyRules(rule, 'highway');
+  const fallbackFilter = ['all', filter, ['!', propertyIn('highway', orderedHighways)]];
+  entries.push({
+    filter: fallbackFilter,
+    rule: baseRule
+  });
+
+  for (const highway of orderedHighways) {
+    const override = highwayRules[highway];
+    if (styleOverrideVisible(override) === false) {
+      continue;
+    }
+
+    const highwayFilter = roadOverrideZoomFilter(
+      ['all', filter, propertyEquals('highway', highway)],
+      override
+    );
+    entries.push({
+      filter: highwayFilter,
+      rule: mergeStyleOverride(baseRule, override)
+    });
+  }
+
+  return createPhasedRoadStyleRules(entries, layerOpacity);
 }
 
 /**
@@ -1226,6 +1306,132 @@ function createLayerStyleRules(filter, rule, layerType, layerId, layerOpacity) {
 }
 
 /**
+ * @param {Array<{ filter: unknown[], rule: Record<string, unknown> }>} entries
+ * @param {Map<string, number>} layerOpacity
+ * @returns {Array<{ filter: unknown[], style: Record<string, unknown> }>}
+ */
+function createPhasedRoadStyleRules(entries, layerOpacity) {
+  const phases = [];
+  for (const entry of entries) {
+    const visibleFilter = createPropertyVisibilityFilter(entry.filter, entry.rule);
+    const parts = createLayerStyleParts(entry.rule, 'line', 'roads', layerOpacity);
+    for (let index = 0; index < parts.length; index += 1) {
+      if (!phases[index]) {
+        phases[index] = [];
+      }
+      phases[index].push({
+        filter: visibleFilter,
+        style: parts[index]
+      });
+    }
+  }
+
+  return phases.flat();
+}
+
+/**
+ * @param {Record<string, unknown>} rule
+ * @returns {Record<string, unknown> | null}
+ */
+function roadHighwayRules(rule) {
+  const byProperty = rule.byProperty && typeof rule.byProperty === 'object'
+    ? /** @type {Record<string, unknown>} */ (rule.byProperty)
+    : null;
+  const highway = byProperty?.highway;
+  return highway && typeof highway === 'object'
+    ? /** @type {Record<string, unknown>} */ (highway)
+    : null;
+}
+
+/**
+ * @param {Record<string, unknown>} values
+ * @returns {string[]}
+ */
+function orderedRoadHighwayValues(values) {
+  const configured = Object.keys(values);
+  const ordered = ROAD_HIGHWAY_DRAW_ORDER.filter((value) => configured.includes(value));
+  return [
+    ...configured.filter((value) => !ROAD_HIGHWAY_DRAW_ORDER.includes(value)),
+    ...ordered
+  ];
+}
+
+/**
+ * @param {Record<string, unknown>} rule
+ * @param {string} property
+ * @returns {Record<string, unknown>}
+ */
+function removeStylePropertyRules(rule, property) {
+  const byProperty = rule.byProperty && typeof rule.byProperty === 'object'
+    ? { .../** @type {Record<string, unknown>} */ (rule.byProperty) }
+    : null;
+  if (!byProperty || !(property in byProperty)) {
+    return rule;
+  }
+
+  delete byProperty[property];
+  const stripped = { ...rule };
+  if (Object.keys(byProperty).length === 0) {
+    delete stripped.byProperty;
+  } else {
+    stripped.byProperty = byProperty;
+  }
+  return stripped;
+}
+
+/**
+ * @param {Record<string, unknown>} rule
+ * @param {unknown} override
+ * @returns {Record<string, unknown>}
+ */
+function mergeStyleOverride(rule, override) {
+  if (!override || typeof override !== 'object') {
+    return rule;
+  }
+
+  const merged = {
+    ...rule,
+    .../** @type {Record<string, unknown>} */ (override)
+  };
+  for (const key of ['body', 'casing', 'center', 'centerLine', 'glow', 'semantics', 'visibility']) {
+    const baseValue = rule[key];
+    const overrideValue = /** @type {Record<string, unknown>} */ (override)[key];
+    if (
+      baseValue && typeof baseValue === 'object' &&
+      overrideValue && typeof overrideValue === 'object'
+    ) {
+      merged[key] = {
+        .../** @type {Record<string, unknown>} */ (baseValue),
+        .../** @type {Record<string, unknown>} */ (overrideValue)
+      };
+    }
+  }
+
+  return normalizeStyleRule(merged);
+}
+
+/**
+ * @param {unknown[]} filter
+ * @param {unknown} override
+ * @returns {unknown[]}
+ */
+function roadOverrideZoomFilter(filter, override) {
+  if (!override || typeof override !== 'object') {
+    return filter;
+  }
+
+  const normalized = normalizeStyleRule(/** @type {Record<string, unknown>} */ (override));
+  let next = filter;
+  if (Number.isFinite(normalized.minZoom)) {
+    next = ['all', next, ['>=', ['zoom'], Number(normalized.minZoom)]];
+  }
+  if (Number.isFinite(normalized.maxZoom)) {
+    next = ['all', next, ['<=', ['zoom'], Number(normalized.maxZoom)]];
+  }
+  return next;
+}
+
+/**
  * @param {unknown[]} filter
  * @param {Record<string, unknown>} rule
  * @returns {unknown[]}
@@ -1474,24 +1680,6 @@ function getLayerRule(styleDocument, layer) {
     : {};
   const id = layer.style || layer.id;
   return normalizeStyleRule(layers[id] || layers[layerAlias(id)] || {});
-}
-
-/**
- * @param {string} layerId
- * @returns {boolean}
- */
-function isAipLayer(layerId) {
-  return layerId === 'aip' || layerId === 'aviation';
-}
-
-/**
- * @param {string} layerId
- * @returns {string}
- */
-function layerAlias(layerId) {
-  if (layerId === 'aip') return 'aviation';
-  if (layerId === 'aviation') return 'aip';
-  return layerId;
 }
 
 /**
@@ -1909,15 +2097,6 @@ function isValidTileCoord(z, x, y) {
 }
 
 /**
- * @param {Record<string, unknown>} manifest
- * @returns {{ url?: string, minZoom?: unknown, maxZoom?: unknown }}
- */
-function pmtilesInfo(manifest) {
-  const tiles = manifest.tiles && typeof manifest.tiles === 'object' ? manifest.tiles : {};
-  return /** @type {{ url?: string, minZoom?: unknown, maxZoom?: unknown }} */ (tiles);
-}
-
-/**
  * @param {number} width
  * @param {number} height
  * @returns {HTMLCanvasElement}
@@ -1947,28 +2126,6 @@ function assertRasterWorkerSupport() {
  */
 function preferNearestZoomLevel(value, high, low) {
   return value - low * Math.sqrt(high / low);
-}
-
-/**
- * @param {unknown} value
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-function clampInteger(value, min, max) {
-  const number = Math.trunc(Number(value));
-  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
-}
-
-/**
- * @param {unknown} value
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-function clampNumber(value, min, max) {
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
 }
 
 /**

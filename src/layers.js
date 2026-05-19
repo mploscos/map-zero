@@ -2,6 +2,9 @@ export const SUPPORTED_LAYERS = [
   'roads',
   'buildings',
   'water',
+  'terrain',
+  'coastline',
+  'cliffs',
   'landuse',
   'railways',
   'boundaries',
@@ -28,6 +31,21 @@ export const LAYER_DEFINITIONS = {
     type: 'polygon',
     gpkgGeometryType: 'MULTIPOLYGON',
     columns: ['id', 'name', 'natural', 'waterway', 'landuse']
+  },
+  terrain: {
+    type: 'polygon',
+    gpkgGeometryType: 'MULTIPOLYGON',
+    columns: ['id', 'name', 'natural']
+  },
+  coastline: {
+    type: 'line',
+    gpkgGeometryType: 'GEOMETRY',
+    columns: ['id', 'name', 'natural']
+  },
+  cliffs: {
+    type: 'line',
+    gpkgGeometryType: 'GEOMETRY',
+    columns: ['id', 'name', 'natural']
   },
   landuse: {
     type: 'polygon',
@@ -112,6 +130,18 @@ export function layersForWay(tags, selectedLayers) {
     layers.push('water');
   }
 
+  if (selectedLayers.has('terrain') && isTerrain(tags)) {
+    layers.push('terrain');
+  }
+
+  if (selectedLayers.has('coastline') && tags.natural === 'coastline') {
+    layers.push('coastline');
+  }
+
+  if (selectedLayers.has('cliffs') && tags.natural === 'cliff') {
+    layers.push('cliffs');
+  }
+
   if (selectedLayers.has('landuse') && isLanduse(tags)) {
     layers.push('landuse');
   }
@@ -152,6 +182,18 @@ export function layersForRelation(tags, selectedLayers) {
 
   if (selectedLayers.has('water') && isWater(tags)) {
     layers.push('water');
+  }
+
+  if (selectedLayers.has('terrain') && isTerrain(tags)) {
+    layers.push('terrain');
+  }
+
+  if (selectedLayers.has('coastline') && tags.natural === 'coastline') {
+    layers.push('coastline');
+  }
+
+  if (selectedLayers.has('cliffs') && tags.natural === 'cliff') {
+    layers.push('cliffs');
   }
 
   if (selectedLayers.has('landuse') && isLanduse(tags)) {
@@ -346,6 +388,14 @@ function isOperationalEmergency(value) {
  */
 function isWater(tags) {
   return tags.natural === 'water' || tags.waterway === 'riverbank' || tags.landuse === 'reservoir';
+}
+
+/**
+ * @param {Record<string, string>} tags
+ * @returns {boolean}
+ */
+function isTerrain(tags) {
+  return tags.natural === 'beach' || tags.natural === 'sand';
 }
 
 /**

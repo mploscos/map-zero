@@ -1,16 +1,25 @@
 {
   "name": "map-zero",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Offline vector map packages from OSM, ready for GeoPackage, PMTiles, and 3D Tiles.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://github.com/mploscos/map-zero#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mploscos/map-zero.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mploscos/map-zero/issues"
+  },
   "bin": {
     "map-zero": "src/cli.js"
   },
   "scripts": {
     "dev": "node src/cli.js --help",
     "start": "node src/cli.js",
-    "check": "node --check src/cli.js && node --check src/build.js && node --check src/osm.js && node --check src/gpkg.js && node --check src/gpkg-read.js && node --check src/geometry-read.js && node --check src/html.js && node --check src/server.js && node --check src/mvt.js && node --check src/pmtiles.js && node --check src/pmtiles-worker.js && node --check src/export-pmtiles.js && node --check src/package.js && node --check src/from-bbox.js && node --check src/3dtiles/b3dm.js && node --check src/3dtiles/glb.js && node --check src/3dtiles/extrude.js && node --check src/3dtiles/flat.js && node --check src/3dtiles/clipper-surfaces.js && node --check src/3dtiles/gpkg-buildings.js && node --check src/3dtiles/gpkg-features.js && node --check src/3dtiles/tileset.js && node --check src/3dtiles/export.js && node --check test-3dtiles/generate-clipper-roads.mjs && node --check test-3dtiles/generate-clipper-roads-from-gpkg.mjs && node --check src/tile-cache.js && node --check src/style-filters.js && node --check src/style-command.js && node --check src/style-presets.js && node --check src/style-themes.js && node --check src/ol.js && node --check packages/ol/src/index.js && node --check packages/ol/src/labels.js && node --check packages/cesium/src/index.js && node --check packages/cesium/src/imagery.js && node --check packages/cesium/src/imagery-worker.js && node --check src/layers.js && node --check src/style.js && node --check src/manifest.js && node --check src/utils.js"
+    "check": "node --check src/cli.js && node --check src/build.js && node --check src/osm.js && node --check src/gpkg.js && node --check src/gpkg-read.js && node --check src/geometry-read.js && node --check src/html.js && node --check src/server.js && node --check src/bbox-server.js && node --check src/mvt.js && node --check src/pmtiles.js && node --check src/pmtiles-worker.js && node --check src/export-pmtiles.js && node --check src/package.js && node --check src/from-bbox.js && node --check src/3dtiles/b3dm.js && node --check src/3dtiles/glb.js && node --check src/3dtiles/extrude.js && node --check src/3dtiles/flat.js && node --check src/3dtiles/clipper-surfaces.js && node --check src/3dtiles/gpkg-buildings.js && node --check src/3dtiles/gpkg-features.js && node --check src/3dtiles/tileset.js && node --check src/3dtiles/export.js && node --check test-3dtiles/generate-clipper-roads.mjs && node --check test-3dtiles/generate-clipper-roads-from-gpkg.mjs && node --check src/tile-cache.js && node --check src/style-filters.js && node --check src/style-command.js && node --check src/style-presets.js && node --check src/style-themes.js && node --check src/ol.js && node --check packages/ol/src/index.js && node --check packages/ol/src/labels.js && node --check packages/cesium/src/index.js && node --check packages/cesium/src/imagery.js && node --check packages/raster/src/imagery-worker.js && node --check src/layers.js && node --check src/style.js && node --check src/manifest.js && node --check src/utils.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"

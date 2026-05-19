@@ -30,6 +30,7 @@ const LANDUSE_OVERVIEW_FILTERS = [
   { column: 'leisure', include: ['park', 'golf_course', 'recreation_ground'] },
   { column: 'natural', include: ['wood', 'water', 'scrub', 'heath'] }
 ];
+const TERRAIN_CLASSES = ['beach', 'sand'];
 const AVIATION_OVERVIEW_CLASSES = ['runway', 'taxiway', 'apron', 'stopway', 'taxilane'];
 const AVIATION_MID_CLASSES = [...AVIATION_OVERVIEW_CLASSES, 'terminal', 'helipad', 'hangar', 'aerodrome', 'heliport'];
 const OPERATIONAL_POI_CATEGORIES = [
@@ -517,6 +518,39 @@ function tileQueryFiltersForLayer(layerId, z, style, bbox) {
   if (layerId === 'landuse' && z < 12) {
     return {
       any: LANDUSE_OVERVIEW_FILTERS
+    };
+  }
+
+  if (layerId === 'terrain') {
+    return {
+      all: [
+        {
+          column: 'natural',
+          include: TERRAIN_CLASSES
+        }
+      ]
+    };
+  }
+
+  if (layerId === 'coastline') {
+    return {
+      all: [
+        {
+          column: 'natural',
+          include: ['coastline']
+        }
+      ]
+    };
+  }
+
+  if (layerId === 'cliffs') {
+    return {
+      all: [
+        {
+          column: 'natural',
+          include: ['cliff']
+        }
+      ]
     };
   }
 
@@ -1711,8 +1745,20 @@ function featurePriority(layerId, feature, z) {
     return 860 + geometryImportance(feature, z);
   }
 
+  if (layerId === 'coastline') {
+    return 830 + geometryImportance(feature, z);
+  }
+
+  if (layerId === 'cliffs') {
+    return 620 + geometryImportance(feature, z);
+  }
+
   if (layerId === 'railways') {
     return 680 + geometryImportance(feature, z);
+  }
+
+  if (layerId === 'terrain') {
+    return 540 + geometryImportance(feature, z);
   }
 
   if (layerId === 'landuse') {
@@ -2428,7 +2474,7 @@ function minFeatureSizeTileUnits(layerId, geometryType, z) {
     return 1;
   }
 
-  if (layerId === 'railways' || isAipLayer(layerId)) {
+  if (layerId === 'railways' || isAipLayer(layerId) || layerId === 'coastline' || layerId === 'cliffs') {
     if (z <= 10) return 2;
     if (z <= 12) return 1.2;
     return 0.8;
@@ -2440,7 +2486,7 @@ function minFeatureSizeTileUnits(layerId, geometryType, z) {
     return 1.5;
   }
 
-  if (layerId === 'landuse') {
+  if (layerId === 'landuse' || layerId === 'terrain') {
     if (z <= 10) return 6;
     if (z <= 12) return 4;
     return 2;
