@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/ol",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "OpenLayers integration helper for map-zero packages.",
   "license": "MIT",
@@ -22,7 +22,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@map-zero/raster": "0.3.0"
+    "@map-zero/raster": "0.3.1"
   },
   "peerDependencies": {
     "ol": "^10.9.0",

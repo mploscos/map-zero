@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Added a `wget` fallback for Geofabrik index and `.osm.pbf` downloads.
+- Added explicit network timeouts and clearer download error messages.
+
 ## 0.3.0
 
 - Moved the PMTiles/MVT raster worker to shared `@map-zero/raster`.

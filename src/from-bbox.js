@@ -1,7 +1,9 @@
 import { createWriteStream, promises as fs } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { once } from 'node:events';
+import { promisify } from 'node:util';
 
 import { buildPackage } from './build.js';
 import { export3dTiles } from './3dtiles/export.js';
@@ -9,6 +11,8 @@ import { exportPmtiles } from './export-pmtiles.js';
 import { packageMapZero } from './package.js';
 
 const GEOFABRIK_INDEX_URL = 'https://download.geofabrik.de/index-v1.json';
+const DOWNLOAD_TIMEOUT_SECONDS = 60;
+const execFileAsync = promisify(execFile);
 
 /**
  * Download the smallest matching OSM extract and build a complete map-zero
@@ -174,11 +178,7 @@ async function loadGeofabrikIndex(cacheDir, indexUrl) {
     return JSON.parse(cached);
   }
 
-  const response = await fetch(indexUrl);
-  if (!response.ok) {
-    throw new Error(`failed to download Geofabrik index: HTTP ${response.status}`);
-  }
-  const text = await response.text();
+  const text = await downloadText(indexUrl, 'Geofabrik index');
   await fs.writeFile(indexPath, text);
   return JSON.parse(text);
 }
@@ -297,22 +297,101 @@ async function downloadExtract(provider, options) {
   }
 
   options.onStage?.(`Downloading ${provider.url}`);
-  const response = await fetch(provider.url);
-  if (!response.ok || !response.body) {
-    throw new Error(`failed to download OSM extract: HTTP ${response.status}`);
-  }
-
   const tempPath = `${filePath}.part`;
-  const stream = createWriteStream(tempPath);
-  for await (const chunk of response.body) {
-    if (!stream.write(Buffer.from(chunk))) {
-      await once(stream, 'drain');
-    }
-  }
-  stream.end();
-  await once(stream, 'finish');
+  await downloadFile(provider.url, tempPath, `OSM extract ${provider.id}`);
   await fs.rename(tempPath, filePath);
   return filePath;
+}
+
+async function downloadText(url, label) {
+  try {
+    const response = await fetchWithTimeout(url, label);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.text();
+  } catch (fetchError) {
+    try {
+      const result = await execFileAsync('wget', [
+        '-q',
+        '-O',
+        '-',
+        `--timeout=${DOWNLOAD_TIMEOUT_SECONDS}`,
+        '--tries=1',
+        url
+      ], {
+        maxBuffer: 32 * 1024 * 1024
+      });
+      return result.stdout;
+    } catch (wgetError) {
+      throw new Error(`${label} download failed from ${url}. fetch: ${errorMessage(fetchError)}. wget: ${errorMessage(wgetError)}`);
+    }
+  }
+}
+
+async function downloadFile(url, filePath, label) {
+  await fs.rm(filePath, { force: true });
+  try {
+    const response = await fetchWithTimeout(url, label);
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const stream = createWriteStream(filePath);
+    try {
+      for await (const chunk of response.body) {
+        if (!stream.write(Buffer.from(chunk))) {
+          await once(stream, 'drain');
+        }
+      }
+      stream.end();
+      await once(stream, 'finish');
+      return;
+    } catch (error) {
+      stream.destroy();
+      throw error;
+    }
+  } catch (fetchError) {
+    await fs.rm(filePath, { force: true });
+    try {
+      await execFileAsync('wget', [
+        '-q',
+        '-O',
+        filePath,
+        `--timeout=${DOWNLOAD_TIMEOUT_SECONDS}`,
+        '--tries=1',
+        url
+      ]);
+    } catch (wgetError) {
+      await fs.rm(filePath, { force: true });
+      throw new Error(`${label} download failed from ${url}. fetch: ${errorMessage(fetchError)}. wget: ${errorMessage(wgetError)}`);
+    }
+  }
+}
+
+async function fetchWithTimeout(url, label) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_SECONDS * 1000);
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'map-zero/0.3.1',
+        accept: 'application/json,application/octet-stream,*/*'
+      }
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`timeout after ${DOWNLOAD_TIMEOUT_SECONDS}s`);
+    }
+    throw new Error(`${label} fetch failed: ${errorMessage(error)}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function errorMessage(error) {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function bboxInsideFeature(bbox, feature) {
