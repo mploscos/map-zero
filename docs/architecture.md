@@ -53,7 +53,7 @@ Terrain edge overlays (`terrain`, `coastline`, `cliffs`) remain in the 2D cartog
 - `styles/presets/*.json`: full renderer-ready style presets.
 - `styles/themes/*.theme.json`: compact user-editable themes.
 - `packages/ol/src/index.js`: framework-agnostic OpenLayers layer helper.
-- `packages/ol/src/labels.js`: optional OpenLayers text label layer.
+- `packages/ol/src/labels.js`: label configuration and compatibility helpers.
 - `packages/cesium/src/index.js`: framework-agnostic Cesium helper.
 - `packages/raster/src/imagery-worker.js`: shared PMTiles/MVT raster worker used by Cesium overlays and OpenLayers raster mode.
 - `src/html.js`: built-in OpenLayers and Cesium viewer shells.

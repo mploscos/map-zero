@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/raster",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "Shared map-zero raster worker for PMTiles/MVT imagery.",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "ol": "^10.9.0",
-    "pmtiles": "^4.4.1"
+    "ol": "10.10.0",
+    "pmtiles": "4.4.1"
   }
 }

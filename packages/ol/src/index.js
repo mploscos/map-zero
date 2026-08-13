@@ -10,6 +10,7 @@ import { PMTiles } from 'pmtiles';
 import { isAipLayer, layerAlias } from '../../raster/src/shared/layers.js';
 import { pmtilesInfo } from '../../raster/src/shared/manifest.js';
 import { clampInteger, clampNumber } from '../../raster/src/shared/math.js';
+import { maxZoomExpression, minZoomExpression, zoomInterpolateExpression } from './zoom.js';
 
 import {
   activeLabelLayerIdsForZoom,
@@ -57,6 +58,7 @@ const ROAD_HIGHWAY_DRAW_ORDER = [
  *   visibleLayers?: string[] | Set<string>,
  *   source?: 'auto' | 'pmtiles' | 'dynamic',
  *   renderMode?: 'vector' | 'raster-worker',
+ *   hitDetection?: boolean,
  *   workerUrl?: string | URL,
  *   rasterPixelRatio?: number,
  *   overzoomLevels?: number,
@@ -144,6 +146,7 @@ export async function createMapZeroOpenLayersLayers(options) {
     source,
     preload: 0,
     useInterimTilesOnError: false,
+    disableHitDetection: options.hitDetection === false,
     style: createWebGlStyles(context)
   });
   tagOpenLayersLayer(layer, instanceId, orderedLayers.map((item) => item.id), 'geometry');
@@ -1252,7 +1255,7 @@ function onewayFilter(filter) {
  * @returns {unknown[]}
  */
 function minZoomFilter(filter, zoom) {
-  return Number.isFinite(zoom) ? ['all', filter, ['>=', ['zoom'], zoom]] : filter;
+  return Number.isFinite(zoom) ? ['all', filter, minZoomExpression(zoom)] : filter;
 }
 
 /**
@@ -1423,10 +1426,10 @@ function roadOverrideZoomFilter(filter, override) {
   const normalized = normalizeStyleRule(/** @type {Record<string, unknown>} */ (override));
   let next = filter;
   if (Number.isFinite(normalized.minZoom)) {
-    next = ['all', next, ['>=', ['zoom'], Number(normalized.minZoom)]];
+    next = ['all', next, minZoomExpression(Number(normalized.minZoom))];
   }
   if (Number.isFinite(normalized.maxZoom)) {
-    next = ['all', next, ['<=', ['zoom'], Number(normalized.maxZoom)]];
+    next = ['all', next, maxZoomExpression(Number(normalized.maxZoom))];
   }
   return next;
 }
@@ -1647,11 +1650,11 @@ function createLayerFilter(layerId, rule) {
   ];
 
   if (Number.isFinite(rule.minZoom)) {
-    filters.push(['>=', ['zoom'], Number(rule.minZoom)]);
+    filters.push(minZoomExpression(Number(rule.minZoom)));
   }
 
   if (Number.isFinite(rule.maxZoom)) {
-    filters.push(['<=', ['zoom'], Number(rule.maxZoom)]);
+    filters.push(maxZoomExpression(Number(rule.maxZoom)));
   }
 
   if (layerId === 'pois') {
@@ -1836,7 +1839,7 @@ function zoomWidthScale(rule) {
     return null;
   }
 
-  const expression = ['interpolate', ['linear'], ['zoom']];
+  const validStops = [];
   for (const stop of stops) {
     if (!Array.isArray(stop) || stop.length < 2) {
       continue;
@@ -1845,11 +1848,11 @@ function zoomWidthScale(rule) {
     const zoom = Number(stop[0]);
     const scale = Number(stop[1]);
     if (Number.isFinite(zoom) && Number.isFinite(scale) && scale >= 0) {
-      expression.push(zoom, scale);
+      validStops.push([zoom, scale]);
     }
   }
 
-  return expression.length > 4 ? expression : null;
+  return zoomInterpolateExpression(validStops);
 }
 
 /**

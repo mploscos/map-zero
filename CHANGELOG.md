@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2
+
+- Updated OpenLayers to 10.10.0 and aligned browser imports with its published
+  ESM dependency graph.
+- Restored reliable WebGL vector rendering while keeping labels in a dedicated
+  text layer; label tiles now decode only their required MVT source layers.
+- Added an optional OpenLayers `hitDetection: false` setting and use it in the
+  built-in viewer to avoid unused WebGL hit-detection buffers.
+- Refreshed the README around the bbox builder workflow.
+
 ## 0.3.1
 
 - Added a `wget` fallback for Geofabrik index and `.osm.pbf` downloads.

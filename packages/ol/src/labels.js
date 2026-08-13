@@ -155,7 +155,10 @@ export class LabelAtlas {
  * @returns {{ layer: VectorTileLayer, source: VectorTileSource, attachMap: () => void, detachMap: () => void, refresh: () => void, destroy: () => void }}
  */
 export function createMapZeroLabelLayer(options) {
-  const format = new MVT({ featureClass: Feature });
+  // The geometry layer already decodes every map layer. Labels only need these
+  // source layers, so do not create Canvas features for buildings, water or
+  // other non-label data a second time.
+  const format = new MVT({ featureClass: Feature, layers: LABEL_SOURCE_LAYERS });
   const source = new VectorTileSource({
     format,
     maxZoom: 22,

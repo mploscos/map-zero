@@ -269,7 +269,7 @@ function createBboxBuilderHtml() {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>map-zero bbox builder</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.9.0/ol.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.10.0/ol.css">
     <style>
       html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #101318; color: #eef2f5; }
       #app { display: grid; grid-template-columns: 340px minmax(0, 1fr); width: 100%; height: 100%; }
@@ -289,7 +289,7 @@ function createBboxBuilderHtml() {
       @media (max-width: 760px) { #app { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } #panel { max-height: 48vh; border-right: 0; border-bottom: 1px solid #2b3440; } }
     </style>
     <script type="importmap">
-      {"imports":{"ol/":"https://esm.sh/ol@10.9.0/"}}
+      {"imports":{"ol/":"https://cdn.jsdelivr.net/npm/ol@10.10.0/","rbush":"https://cdn.jsdelivr.net/npm/rbush@4.0.1/+esm"}}
     </script>
   </head>
   <body>
@@ -325,7 +325,6 @@ function createBboxBuilderHtml() {
       import OSM from 'ol/source/OSM.js';
       import VectorSource from 'ol/source/Vector.js';
       import {fromLonLat, transformExtent} from 'ol/proj.js';
-      import {Style, Stroke, Fill} from 'ol/style.js';
 
       const bboxInput = document.getElementById('bboxInput');
       const outInput = document.getElementById('outInput');
@@ -336,10 +335,11 @@ function createBboxBuilderHtml() {
       const source = new VectorSource();
       const vector = new VectorLayer({
         source,
-        style: new Style({
-          stroke: new Stroke({ color: '#2f81f7', width: 2 }),
-          fill: new Fill({ color: 'rgba(47,129,247,0.18)' })
-        })
+        style: {
+          'stroke-color': '#2f81f7',
+          'stroke-width': 2,
+          'fill-color': 'rgba(47,129,247,0.18)'
+        }
       });
       const map = new Map({
         target: 'map',

@@ -26,6 +26,14 @@ The helper supports:
 - PMTiles vector MVT when `manifest.tiles.format === "pmtiles"`
 - dynamic MVT from the map-zero server otherwise
 
+Geometry is rendered through `WebGLVectorTileLayer`. Labels use a separate
+OpenLayers text layer so text attributes do not increase the WebGL geometry
+buffer stride.
+
+Set `hitDetection: false` when the application does not call
+`map.forEachFeatureAtPixel()`. This skips WebGL hit-detection buffers; the
+built-in viewer uses this setting because it has no feature-picking workflow.
+
 You can force a source mode:
 
 ```js

@@ -12,7 +12,7 @@ export function createViewerHtml(options = {}) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>map-zero</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.9.0/ol.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.10.0/ol.css">
     <style>
       html,
       body {
@@ -99,7 +99,10 @@ export function createViewerHtml(options = {}) {
     <script type="importmap">
       {
         "imports": {
-          "ol/": "https://esm.sh/ol@10.9.0/",
+          "ol/": "https://cdn.jsdelivr.net/npm/ol@10.10.0/",
+          "rbush": "https://cdn.jsdelivr.net/npm/rbush@4.0.1/+esm",
+          "pbf": "https://cdn.jsdelivr.net/npm/pbf@5.1.2/+esm",
+          "earcut": "https://cdn.jsdelivr.net/npm/earcut@3.0.2/+esm",
           "pmtiles": "/vendor/pmtiles.js",
           "fflate": "/vendor/fflate.js"
         }
@@ -152,6 +155,7 @@ export function createViewerHtml(options = {}) {
           manifestUrl: '/manifest.json',
           manifest,
           style: 'default',
+          hitDetection: false,
           ...readRenderOptions(),
           onTileLoadStart() {
             loadingTiles += 1;
@@ -303,7 +307,10 @@ export function createCesiumViewerHtml(options = {}) {
     <script type="importmap">
       {
         "imports": {
-          "ol/": "https://esm.sh/ol@10.9.0/",
+          "ol/": "https://cdn.jsdelivr.net/npm/ol@10.10.0/",
+          "rbush": "https://cdn.jsdelivr.net/npm/rbush@4.0.1/+esm",
+          "pbf": "https://cdn.jsdelivr.net/npm/pbf@5.1.2/+esm",
+          "earcut": "https://cdn.jsdelivr.net/npm/earcut@3.0.2/+esm",
           "pmtiles": "/vendor/pmtiles.js",
           "fflate": "/vendor/fflate.js"
         }

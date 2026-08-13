@@ -111,6 +111,14 @@ export async function createMapZeroServer(options) {
       .send(moduleSource);
   });
 
+  app.get('/zoom.js', async (request, reply) => {
+    const moduleSource = await fs.readFile(new URL('../packages/ol/src/zoom.js', import.meta.url), 'utf8');
+    reply
+      .header('cache-control', 'no-store')
+      .type('text/javascript; charset=utf-8')
+      .send(moduleSource);
+  });
+
   app.get('/vendor/pmtiles.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../node_modules/pmtiles/dist/esm/index.js', import.meta.url), 'utf8');
     reply
@@ -171,8 +179,8 @@ export async function createMapZeroServer(options) {
   app.get('/imagery-worker.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../packages/raster/src/imagery-worker.js', import.meta.url), 'utf8');
     const browserSource = moduleSource
-      .replace("import Feature from 'ol/Feature.js';", "import Feature from 'https://esm.sh/ol@10.9.0/Feature.js';")
-      .replace("import MVT from 'ol/format/MVT.js';", "import MVT from 'https://esm.sh/ol@10.9.0/format/MVT.js';")
+      .replace("import Feature from 'ol/Feature.js';", "import Feature from 'https://esm.sh/ol@10.10.0/Feature.js';")
+      .replace("import MVT from 'ol/format/MVT.js';", "import MVT from 'https://esm.sh/ol@10.10.0/format/MVT.js';")
       .replace("import { PMTiles } from 'pmtiles';", "import { PMTiles } from '/vendor/pmtiles-worker.js';")
       .replaceAll("from './", "from '/map-zero-raster/");
     reply
