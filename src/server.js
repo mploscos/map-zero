@@ -118,7 +118,7 @@ export async function createMapZeroServer(options) {
   });
 
   app.get('/vendor/pmtiles.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../node_modules/pmtiles/dist/esm/index.js', import.meta.url), 'utf8');
+    const moduleSource = await fs.readFile(new URL(import.meta.resolve('pmtiles')), 'utf8');
     reply
       .header('cache-control', 'public, max-age=31536000, immutable')
       .type('text/javascript; charset=utf-8')
@@ -126,7 +126,7 @@ export async function createMapZeroServer(options) {
   });
 
   app.get('/vendor/fflate.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../node_modules/fflate/esm/browser.js', import.meta.url), 'utf8');
+    const moduleSource = await fs.readFile(new URL('./browser.js', import.meta.resolve('fflate')), 'utf8');
     reply
       .header('cache-control', 'public, max-age=31536000, immutable')
       .type('text/javascript; charset=utf-8')

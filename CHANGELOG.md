@@ -4,7 +4,8 @@
 
 - Updated Cesium to 1.145.0; OpenLayers remains at 10.10.0. Aligned all map-zero package versions and derive CLI version from package metadata.
 - Added native Cesium MVT rendering with 1.145 terrain/3D Tiles draping, shared theme styling, and a readonly XYZ endpoint backed by the same PMTiles archive as OpenLayers. Both viewers use vector rendering; removed raster-worker modes, imagery provider, worker routes and `@map-zero/raster`. Shared rules and caches now live in `@map-zero/core`.
-- Enabled explicit rendering in the built-in Cesium viewer and corrected per-layer opacity, visibility and worker cleanup.
+- Fixed browser dependency asset resolution when the CLI is installed from npm.
+- Enabled explicit rendering in the built-in Cesium viewer and corrected per-layer opacity, visibility and primitive cleanup.
 - Bounded OL label/style caches, shared PMTiles reads and retries after failed tile loads.
 - Added native Cesium labels using the loaded MVT tiles, shared theme rules, stable anchors, priority decluttering, per-layer controls and a labels toggle. Re-export existing PMTiles for the new anchor fields.
 - Compressed PMTiles payloads and directories, bounded root directory size, corrected clustered metadata and fixed pending-write accounting in parallel exports.
