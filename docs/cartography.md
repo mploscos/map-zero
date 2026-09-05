@@ -23,7 +23,7 @@ Terrain context is intentionally sparse and supports infrastructure readability 
 - `terrain`: OSM `natural=beach` and `natural=sand`, drawn as low-opacity amber/gray fills to separate land and sea subtly.
 - `cliffs`: OSM `natural=cliff`, drawn as a thin gray/cyan line for sharper coastal or terrain definition.
 
-These overlays are included in GeoPackage, dynamic MVT, PMTiles, OpenLayers, and Cesium raster context rendering. They are intentionally excluded from 3D Tiles export.
+These overlays are included in GeoPackage, dynamic MVT, PMTiles, OpenLayers, and Cesium native MVT rendering. They are intentionally excluded from 3D Tiles export.
 
 ## Labels
 

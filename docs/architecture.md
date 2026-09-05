@@ -24,7 +24,8 @@
 - `src/tile-cache.js`: in-memory LRU cache and in-flight tile request coalescing support.
 - `src/export-pmtiles.js`: PMTiles export orchestration and progress.
 - `src/pmtiles-worker.js`: worker-thread tile generation for PMTiles export.
-- `src/pmtiles.js`: PMTiles archive writer utilities.
+- `src/pmtiles.js`: compressed PMTiles archive writer with adaptive directories.
+- `src/pmtiles-source.js`: readonly local PMTiles range source for the native Cesium XYZ adapter.
 
 Dynamic serving and PMTiles export both call the same `src/mvt.js` tile generation functions.
 
@@ -55,7 +56,9 @@ Terrain edge overlays (`terrain`, `coastline`, `cliffs`) remain in the 2D cartog
 - `packages/ol/src/index.js`: framework-agnostic OpenLayers layer helper.
 - `packages/ol/src/labels.js`: label configuration and compatibility helpers.
 - `packages/cesium/src/index.js`: framework-agnostic Cesium helper.
-- `packages/raster/src/imagery-worker.js`: shared PMTiles/MVT raster worker used by Cesium overlays and OpenLayers raster mode.
+- `packages/cesium/src/vector.js`: native Cesium 1.145 MVT context, bounded tile hierarchy, shared theme adapter and surface draping.
+- `packages/core/src/`: shared theme rules, label selection and bounded caches without renderer dependencies.
+- `packages/cesium/src/cesium-labels.js`: native text, tile reuse and screen decluttering.
 - `src/html.js`: built-in OpenLayers and Cesium viewer shells.
 
 ## Package Layout

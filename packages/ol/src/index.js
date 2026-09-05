@@ -1,15 +1,12 @@
+import { LruCache, cachedPromise } from '../../core/src/shared/cache.js';
 import MVT from 'ol/format/MVT.js';
-import TileLayer from 'ol/layer/Tile.js';
 import WebGLVectorTileLayer from 'ol/layer/WebGLVectorTile.js';
 import WebGLVectorTileLayerRenderer from 'ol/renderer/webgl/VectorTileLayer.js';
-import ImageTileSource from 'ol/source/ImageTile.js';
 import VectorTileSource from 'ol/source/VectorTile.js';
 import { createXYZ } from 'ol/tilegrid.js';
 import { PMTiles } from 'pmtiles';
 
-import { isAipLayer, layerAlias } from '../../raster/src/shared/layers.js';
-import { pmtilesInfo } from '../../raster/src/shared/manifest.js';
-import { clampInteger, clampNumber } from '../../raster/src/shared/math.js';
+import { isAipLayer, layerAlias } from '../../core/src/shared/layers.js';
 import { maxZoomExpression, minZoomExpression, zoomInterpolateExpression } from './zoom.js';
 
 import {
@@ -57,12 +54,7 @@ const ROAD_HIGHWAY_DRAW_ORDER = [
  *   style?: string | Record<string, unknown>,
  *   visibleLayers?: string[] | Set<string>,
  *   source?: 'auto' | 'pmtiles' | 'dynamic',
- *   renderMode?: 'vector' | 'raster-worker',
  *   hitDetection?: boolean,
- *   workerUrl?: string | URL,
- *   rasterPixelRatio?: number,
- *   overzoomLevels?: number,
- *   edgeGuardPixels?: number,
  *   apiBaseUrl?: string,
  *   zIndexBase?: number,
  *   onTileLoadStart?: () => void,
@@ -135,9 +127,6 @@ export async function createMapZeroOpenLayersLayers(options) {
     onTileLoadError: options.onTileLoadError
   };
 
-  if (options.renderMode === 'raster-worker') {
-    return createRasterWorkerController(context, options);
-  }
 
   patchWebGlVectorTileRenderer();
 
@@ -233,193 +222,6 @@ export async function createMapZeroOpenLayersLayers(options) {
  *   destroy: () => void
  * }}
  */
-function createRasterWorkerController(context, options) {
-  if (!isPmtilesManifest(context.manifest)) {
-    throw new Error('raster-worker render mode requires vector PMTiles');
-  }
-
-  const worker = new MapZeroRasterTileWorker({
-    manifest: context.manifest,
-    manifestUrl: context.manifestUrl,
-    styleDocument: context.styleDocument,
-    layers: context.orderedLayers.map((layer) => layer.id),
-    workerUrl: options.workerUrl ?? new URL('@map-zero/raster/imagery-worker.js', import.meta.url),
-    rasterPixelRatio: options.rasterPixelRatio,
-    overzoomLevels: options.overzoomLevels,
-    edgeGuardPixels: options.edgeGuardPixels
-  });
-  worker.setVisibleLayers(context.layerVisibility);
-  const range = pmtilesZoomRange(context.manifest);
-  const maxZoom = range.maxZoom + clampInteger(options.overzoomLevels ?? 0, 0, 4);
-  const rasterPixelRatio = clampNumber(options.rasterPixelRatio ?? 2, 1, 2);
-  const source = new ImageTileSource({
-    minZoom: range.minZoom,
-    maxZoom,
-    tileGrid: createXYZ({
-      minZoom: range.minZoom,
-      maxZoom,
-      tileSize: 512
-    }),
-    tileSize: 512,
-    transition: 0,
-    interpolate: true,
-    zDirection: preferNearestZoomLevel,
-    wrapX: false,
-    loader: (z, x, y) => worker.render(z, x, y)
-  });
-  source.getTilePixelRatio = () => rasterPixelRatio;
-  const layer = new TileLayer({
-    source,
-    cacheSize: 4096,
-    preload: 0,
-    useInterimTilesOnError: false
-  });
-  tagOpenLayersLayer(layer, context.instanceId, context.orderedLayers.map((item) => item.id), 'raster');
-  applyLayerZIndex(layer, context.orderedLayers, context.styleDocument, options.zIndexBase);
-
-  const refresh = () => {
-    worker.setVisibleLayers(context.layerVisibility);
-    refreshRasterSource(source);
-    layer.changed();
-  };
-
-  return {
-    id: context.instanceId,
-    manifest: context.manifest,
-    style: context.styleDocument,
-    layers: [layer],
-    setVisible(layerId, visible) {
-      if (!context.layerVisibility.has(layerId)) {
-        throw new Error(`unknown map-zero layer: ${layerId}`);
-      }
-
-      context.layerVisibility.set(layerId, Boolean(visible));
-      refresh();
-    },
-    setOpacity(layerId, opacity) {
-      if (!context.layerOpacity?.has?.(layerId)) {
-        throw new Error(`unknown map-zero layer: ${layerId}`);
-      }
-
-      layer.setOpacity(clamp(Number(opacity), 0, 1));
-    },
-    destroy() {
-      refreshRasterSource(source);
-      worker.destroy();
-      layer.dispose();
-    }
-  };
-}
-
-function refreshRasterSource(source) {
-  source.clear();
-  source.refresh?.();
-}
-
-class MapZeroRasterTileWorker {
-  /**
-   * @param {{
-   *   manifest: Record<string, unknown>,
-   *   manifestUrl: string,
-   *   styleDocument: Record<string, unknown>,
-   *   layers: string[],
-   *   workerUrl: string | URL,
-   *   rasterPixelRatio?: number,
-   *   overzoomLevels?: number,
-   *   edgeGuardPixels?: number
-   * }} options
-   */
-  constructor(options) {
-    assertRasterWorkerSupport();
-    this.#rasterPixelRatio = clampNumber(options.rasterPixelRatio ?? 2, 1, 2);
-    this.worker = new Worker(options.workerUrl, { type: 'module' });
-    this.worker.addEventListener('message', (event) => this.#handleMessage(event.data));
-    this.worker.addEventListener('error', (event) => this.#rejectAll(new Error(event.message || 'map-zero OpenLayers raster worker failed')));
-    this.worker.postMessage({
-      type: 'init',
-      options: {
-        manifest: options.manifest,
-        manifestUrl: resolveUrl(options.manifestUrl, documentBaseUrl()),
-        styleDocument: options.styleDocument,
-        layers: options.layers,
-        tileSize: 512,
-        pixelRatio: this.#rasterPixelRatio,
-        sourceMaximumLevel: pmtilesZoomRange(options.manifest).maxZoom,
-        overzoomLevels: clampInteger(options.overzoomLevels ?? 0, 0, 4),
-        edgeGuardPixels: clampInteger(options.edgeGuardPixels ?? 0, 0, 8),
-        source: String(pmtilesInfo(options.manifest).url ?? 'tiles.pmtiles')
-      }
-    });
-  }
-
-  /**
-   * @param {number} z
-   * @param {number} x
-   * @param {number} y
-   * @returns {Promise<ImageBitmap | HTMLCanvasElement>}
-   */
-  render(z, x, y) {
-    const id = this.#nextId++;
-    return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject });
-      this.worker.postMessage({ type: 'render', id, x, y, z });
-    }).catch(() => emptyCanvas(512 * this.#rasterPixelRatio, 512 * this.#rasterPixelRatio));
-  }
-
-  /**
-   * @param {Map<string, boolean>} visibility
-   */
-  setVisibleLayers(visibility) {
-    for (const [layerId, visible] of visibility) {
-      this.worker.postMessage({ type: 'visibility', layerId, visible });
-    }
-  }
-
-  destroy() {
-    this.#rejectAll(new Error('map-zero OpenLayers raster worker destroyed'));
-    this.worker.terminate();
-  }
-
-  /**
-   * @param {any} message
-   */
-  #handleMessage(message) {
-    if (message?.type !== 'tile') {
-      return;
-    }
-
-    const pending = this.#pending.get(message.id);
-    if (!pending) {
-      message.image?.close?.();
-      return;
-    }
-
-    this.#pending.delete(message.id);
-    if (message.error) {
-      pending.reject(new Error(message.error));
-      return;
-    }
-    pending.resolve(message.image ?? emptyCanvas(512, 512));
-  }
-
-  /**
-   * @param {Error} error
-   */
-  #rejectAll(error) {
-    for (const pending of this.#pending.values()) {
-      pending.reject(error);
-    }
-    this.#pending.clear();
-  }
-
-  /** @type {Worker} */
-  worker;
-  #rasterPixelRatio = 2;
-  #nextId = 1;
-  /** @type {Map<number, { resolve: (image: ImageBitmap | HTMLCanvasElement) => void, reject: (error: Error) => void }>} */
-  #pending = new Map();
-}
-
 /**
  * Add map-zero layers to an existing OpenLayers map.
  *
@@ -580,7 +382,7 @@ function applyLayerZIndex(layer, orderedLayers, styleDocument, zIndexBase) {
  * @param {unknown} layer
  * @param {string} instanceId
  * @param {string[]} layerIds
- * @param {'geometry' | 'labels' | 'raster'} role
+ * @param {'geometry' | 'labels'} role
  */
 function tagOpenLayersLayer(layer, instanceId, layerIds, role) {
   const namespacedLayerIds = layerIds.map((layerId) => namespaceLayerId(instanceId, layerId));
@@ -879,8 +681,14 @@ function createLabelTileDataLoader(context) {
  * @returns {PMTiles}
  */
 function createPmtilesArchive(context) {
+  if (context.archive) return context.archive;
   const tiles = /** @type {{ url: string }} */ (context.manifest.tiles);
-  return new PMTiles(resolveUrl(tiles.url, context.manifestBaseUrl));
+  const archive = new PMTiles(resolveUrl(tiles.url, context.manifestBaseUrl));
+  const cache = new LruCache(128);
+  const getZxy = archive.getZxy.bind(archive);
+  archive.getZxy = (z, x, y) => cachedPromise(cache, `${z}/${x}/${y}`, () => getZxy(z, x, y));
+  context.archive = archive;
+  return archive;
 }
 
 /**
@@ -2097,38 +1905,6 @@ function isValidTileCoord(z, x, y) {
 
   const maxIndex = 2 ** z;
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < maxIndex && y < maxIndex;
-}
-
-/**
- * @param {number} width
- * @param {number} height
- * @returns {HTMLCanvasElement}
- */
-function emptyCanvas(width, height) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  return canvas;
-}
-
-function assertRasterWorkerSupport() {
-  if (typeof Worker !== 'function' || typeof OffscreenCanvas !== 'function' || typeof createImageBitmap !== 'function') {
-    throw new Error('map-zero OpenLayers raster-worker mode requires Worker, OffscreenCanvas, and createImageBitmap');
-  }
-}
-
-/**
- * Choose the raster tile zoom at the midpoint in zoom space instead of always
- * forcing the parent or child tile. This keeps fractional zooms sharp without
- * holding low-resolution tiles for too long.
- *
- * @param {number} value
- * @param {number} high
- * @param {number} low
- * @returns {number}
- */
-function preferNearestZoomLevel(value, high, low) {
-  return value - low * Math.sqrt(high / low);
 }
 
 /**

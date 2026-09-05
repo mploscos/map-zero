@@ -96,8 +96,8 @@ function buildHtml() {
 <head>
   <meta charset="utf-8">
   <title>map-zero Clipper roads test</title>
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesium { width: 100%; height: 100%; margin: 0; background: #000; overflow: hidden; }
   </style>

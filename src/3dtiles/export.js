@@ -198,10 +198,12 @@ async function exportBuildingLayer(db, manifest, outRoot, options) {
   });
   options.onProgress?.({ phase: 'estimate', layerId: 'buildings', leafCount: leaves.length, featureCount });
 
+  const seenIds = new Set();
   return exportLayerTiles('buildings', metadata.bbox, leaves, outRoot, options.style, {
     readMesh: (leaf) => {
       const { footprints, skipped } = readBuildingFootprints(db, metadata, leaf.bbox, {
-        defaultHeight: options.defaultHeight
+        defaultHeight: options.defaultHeight,
+        seenIds
       });
       return {
         mesh: buildMergedExtrudedPolygonMesh(footprints),
@@ -241,10 +243,11 @@ async function exportMixedSurfaceLayer(db, manifest, outRoot, layerId, options) 
   });
   options.onProgress?.({ phase: 'estimate', layerId, leafCount: leaves.length, featureCount });
 
+  const seenIds = new Set();
   return exportLayerTiles(layerId, metadata.bbox, leaves, outRoot, options.style, {
     readMeshes: async (leaf) => {
       const features = readLayerFeatures(db, metadata, leaf.bbox, {
-        limit: options.maxFeatures * 2
+        seenIds
       });
       const polygonFeatures = features.filter(hasPolygonGeometry);
       const pointFeatures = isAipLayer(layerId)
@@ -308,10 +311,11 @@ async function exportFlatLayer(db, manifest, outRoot, layerId, options) {
   });
   options.onProgress?.({ phase: 'estimate', layerId, leafCount: leaves.length, featureCount });
 
+  const seenIds = new Set();
   return exportLayerTiles(layerId, metadata.bbox, leaves, outRoot, options.style, {
     readMesh: (leaf) => {
       const features = readLayerFeatures(db, metadata, leaf.bbox, {
-        limit: options.maxFeatures * 2
+        seenIds
       });
       return {
         mesh: buildFlatLayerMesh(layerId, features, {
@@ -351,10 +355,11 @@ async function exportRoadLayer(db, manifest, outRoot, options) {
   });
   options.onProgress?.({ phase: 'estimate', layerId: 'roads', leafCount: leaves.length, featureCount });
 
+  const seenIds = new Set();
   return exportLayerTiles('roads', metadata.bbox, leaves, outRoot, options.style, {
     readMeshes: async (leaf) => {
       const features = readLayerFeatures(db, metadata, leaf.bbox, {
-        limit: options.maxFeatures * 2
+        seenIds
       });
       const lines = linesFromFeatures(features);
       const bodyWidth = roadBodyWidthMeters(options.style);
@@ -403,10 +408,11 @@ async function exportLineSurfaceLayer(db, manifest, outRoot, layerId, options) {
   });
   options.onProgress?.({ phase: 'estimate', layerId, leafCount: leaves.length, featureCount });
 
+  const seenIds = new Set();
   return exportLayerTiles(layerId, metadata.bbox, leaves, outRoot, options.style, {
     readMeshes: async (leaf) => {
       const features = readLayerFeatures(db, metadata, leaf.bbox, {
-        limit: options.maxFeatures * 2
+        seenIds
       });
       const lines = linesFromFeatures(features);
       const mesh = await buildClipperLineSurfaceMesh(lines, {
@@ -663,7 +669,8 @@ async function updateManifest3dTiles(manifestPath, manifest, tilesets, bbox) {
   manifest.tiles3d = {
     format: '3dtiles',
     url: firstEntry?.[1],
-    layers: Object.keys(tilesets)
+    layers: Object.keys(tilesets),
+    tilesets
   };
   if (!sameBbox(bbox, manifest.bbox)) {
     manifest.tiles3d.bbox = bbox;

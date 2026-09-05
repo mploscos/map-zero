@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/cesium",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "type": "module",
   "description": "Cesium integration helper for map-zero 3D Tiles packages.",
   "license": "MIT",
@@ -22,11 +22,12 @@
     "README.md"
   ],
   "dependencies": {
-    "@map-zero/raster": "0.3.2"
+    "@map-zero/core": "0.4.0"
   },
   "peerDependencies": {
-    "cesium": "1.141.0",
-    "ol": "10.10.0",
-    "pmtiles": "4.4.1"
+    "cesium": "1.145.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

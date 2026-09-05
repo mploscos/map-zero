@@ -1333,7 +1333,7 @@ function labelFeatureLimit(layerId, z) {
  * @param {{ type?: string, coordinates?: unknown }} geometry
  * @returns {number[] | null}
  */
-function labelAnchorForGeometry(geometry) {
+export function labelAnchorForGeometry(geometry) {
   if (geometry.type === 'Point' && isCoordinate(geometry.coordinates)) {
     return /** @type {number[]} */ (geometry.coordinates);
   }
@@ -1471,18 +1471,35 @@ function polygonAnchor(polygon) {
     return null;
   }
 
-  let x = 0;
-  let y = 0;
-  let count = 0;
-  for (const coordinate of ring) {
-    if (isCoordinate(coordinate)) {
-      x += Number(coordinate[0]);
-      y += Number(coordinate[1]);
-      count += 1;
+  // Find the widest interior interval on horizontal scanlines. The even/odd
+  // rule includes concave outlines and subtracts holes, unlike vertex averages.
+  const ys = [...new Set(ring.filter(isCoordinate).map((p) => Number(p[1])))].sort((a, b) => a - b);
+  if (ys.length < 2) return ring.find(isCoordinate) ?? null;
+  const scans = [(ys[0] + ys.at(-1)) / 2];
+  for (let i = 1; i < ys.length; i++) scans.push((ys[i - 1] + ys[i]) / 2);
+  let best = null;
+  let width = -1;
+  // Limit work for very detailed OSM polygons; every chosen interval is inside.
+  const stride = Math.max(1, Math.ceil(scans.length / 32));
+  for (let scan = 0; scan < scans.length; scan += stride) {
+    const y = scans[scan];
+    const xs = [];
+    for (const outline of polygon) {
+      for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+        const a = outline[j], b = outline[i];
+        if (!isCoordinate(a) || !isCoordinate(b) || (a[1] > y) === (b[1] > y)) continue;
+        xs.push(Number(a[0]) + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+      }
+    }
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      if (xs[i + 1] - xs[i] > width) {
+        width = xs[i + 1] - xs[i]; best = [(xs[i] + xs[i + 1]) / 2, y];
+      }
     }
   }
+  return best;
 
-  return count > 0 ? [x / count, y / count] : null;
 }
 
 /**
@@ -2546,6 +2563,20 @@ function countGeometryVertices(geometry) {
  * @returns {{ tile: { features: unknown[] }, stats: GeneralizationStats }}
  */
 function createLayerTile(features, bbox, z, x, y, layerId, detail) {
+  // Native Cesium styles need to distinguish polygons, lines and points in
+  // mixed layers; OpenLayers obtains this directly from its decoded geometry.
+  features = features.map((feature) => {
+    const properties = { ...feature.properties, mapzero_geometry: feature.geometry?.type ?? '' };
+    if (['roads', 'pois', 'aip', 'aviation'].includes(layerId)) {
+      const anchor = labelAnchorForGeometry(feature.geometry ?? {});
+      if (anchor) {
+        // Original, unclipped anchors stay identical across tile and LOD borders.
+        properties.mapzero_label_lon = Number(anchor[0]);
+        properties.mapzero_label_lat = Number(anchor[1]);
+      }
+    }
+    return { ...feature, properties };
+  });
   const simplified = simplifyFeatures(features, bbox, z, layerId, detail);
   const tile = tileFromFeatures(simplified.features, z, x, y);
   if (tile.features.length > 0 || features.length === 0) {

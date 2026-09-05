@@ -1,0 +1,56 @@
+$ node src/cli.js build data/madrid.osm.pbf --bbox -3.710,40.413,-3.696,40.422 --out generated/readme-demo.mapzero
+> Validating input and preparing output folder
+> Writing GeoPackage
+> Scanning OSM extract ./data/madrid.osm.pbf
+> PBF scan: finding candidate ways and relations
+PBF scan: finding candidate ways and relations: 25% (19.8 MB/79.2 MB, 3,096,000 entities)
+PBF scan: finding candidate ways and relations: 50% (39.6 MB/79.2 MB, 7,368,000 entities)
+PBF scan: finding candidate ways and relations: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
+PBF scan: finding candidate ways and relations: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
+> Stored 996575 candidate way rows and 14005 candidate relation rows
+> PBF scan: resolving relation member ways
+PBF scan: resolving relation member ways: 25% (19.8 MB/79.2 MB, 3,176,000 entities)
+PBF scan: resolving relation member ways: 50% (39.6 MB/79.2 MB, 7,344,000 entities)
+PBF scan: resolving relation member ways: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
+PBF scan: resolving relation member ways: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
+> Resolved 35025 relation member ways
+> PBF scan: loading referenced nodes and point features
+PBF scan: loading referenced nodes and point features: 25% (19.8 MB/79.2 MB, 3,136,000 entities)
+PBF scan: loading referenced nodes and point features: 50% (39.6 MB/79.2 MB, 7,216,000 entities)
+PBF scan: loading referenced nodes and point features: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
+PBF scan: loading referenced nodes and point features: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
+> Loaded 7286300 referenced nodes
+> Building geometries for 996575 way rows
+Building way geometries: 26% (260,000/996,575)
+Building way geometries: 50% (500,000/996,575)
+Building way geometries: 76% (760,000/996,575)
+Building way geometries: 100% (996,575/996,575)
+> Building geometries for 14005 relation rows
+Building relation geometries: 35% (5,000/14,005)
+Building relation geometries: 71% (10,000/14,005)
+Building relation geometries: 100% (14,005/14,005)
+> Writing manifest and style
+Built ./generated/readme-demo.mapzero
+  roads: 1028
+  buildings: 2008
+  water: 8
+  terrain: 0
+  coastline: 0
+  cliffs: 0
+  landuse: 13
+  railways: 53
+  boundaries: 13
+  pois: 3394
+  aip: 0
+
+$ node src/cli.js pmtiles generated/readme-demo.mapzero --minzoom 8 --maxzoom 16 --workers 4
+
+$ node src/cli.js 3dtiles generated/readme-demo.mapzero
+3D Tiles plan: buildings: 4 leaf tiles, 2,008 features
+3D Tiles: 4/4 leaves, 4 written, 0 empty
+3D Tiles size: 4.7 MB
+Exported ./generated/readme-demo.mapzero/3dtiles/buildings/tileset.json
+  leaves: 4
+  written tiles: 4
+  skipped empty tiles: 0
+  size: 4.7 MB

@@ -1,5 +1,6 @@
 import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
 import { Compression, TileType, zxyToTileId } from 'pmtiles';
@@ -8,6 +9,7 @@ const HEADER_SIZE_BYTES = 127;
 const SPEC_VERSION = 3;
 const COORDINATE_SCALE = 10_000_000;
 const ROOT_LEAF_SIZE = 512;
+const MAX_ROOT_BYTES = 16384 - HEADER_SIZE_BYTES;
 
 /**
  * @typedef {{
@@ -31,7 +33,7 @@ export function tileIdForZxy(z, x, y) {
 }
 
 /**
- * Write a PMTiles v3 archive with one root directory and uncompressed MVT tile data.
+ * Write a PMTiles v3 archive with compressed directories and caller-selected MVT compression.
  *
  * @param {{
  *   outPath: string,
@@ -41,6 +43,7 @@ export function tileIdForZxy(z, x, y) {
  *   minZoom: number,
  *   maxZoom: number,
  *   bbox: [number, number, number, number],
+ *   tileCompression?: number,
  *   centerZoom?: number
  * }} options
  * @returns {Promise<{ bytes: number, entries: number }>}
@@ -48,7 +51,7 @@ export function tileIdForZxy(z, x, y) {
 export async function writePmtilesArchive(options) {
   const sortedEntries = [...options.entries].sort((a, b) => a.tileId - b.tileId);
   const directories = createDirectories(sortedEntries);
-  const metadata = Buffer.from(`${JSON.stringify(options.metadata)}\n`);
+  const metadata = gzipSync(Buffer.from(`${JSON.stringify(options.metadata)}\n`));
   const tileDataStat = await fs.stat(options.tileDataPath);
 
   const rootDirectoryOffset = HEADER_SIZE_BYTES;
@@ -64,12 +67,14 @@ export async function writePmtilesArchive(options) {
     leafDirectoryLength: directories.leaves.length,
     tileDataOffset,
     tileDataLength: tileDataStat.size,
-    numAddressedTiles: sortedEntries.length,
+    numAddressedTiles: sortedEntries.reduce((sum, entry) => sum + entry.runLength, 0),
     numTileEntries: sortedEntries.length,
     numTileContents: sortedEntries.length,
     minZoom: options.minZoom,
     maxZoom: options.maxZoom,
     bbox: options.bbox,
+    tileCompression: options.tileCompression ?? Compression.None,
+    clustered: sortedEntries.every((entry, index) => index === 0 ? entry.offset === 0 : entry.offset === sortedEntries[index - 1].offset + sortedEntries[index - 1].length),
     centerZoom: options.centerZoom ?? options.minZoom
   });
 
@@ -103,33 +108,25 @@ export async function writePmtilesArchive(options) {
  * @returns {{ root: Buffer, leaves: Buffer }}
  */
 function createDirectories(entries) {
-  if (entries.length <= ROOT_LEAF_SIZE) {
-    return {
-      root: serializeDirectory(entries),
-      leaves: Buffer.alloc(0)
-    };
-  }
+  const direct = gzipSync(serializeDirectory(entries));
+  if (direct.length <= MAX_ROOT_BYTES) return { root: direct, leaves: Buffer.alloc(0) };
 
-  const rootEntries = [];
-  const leafBuffers = [];
-  let leafOffset = 0;
-  for (let index = 0; index < entries.length; index += ROOT_LEAF_SIZE) {
-    const leafEntries = entries.slice(index, index + ROOT_LEAF_SIZE);
-    const leaf = serializeDirectory(leafEntries);
-    rootEntries.push({
-      tileId: leafEntries[0].tileId,
-      offset: leafOffset,
-      length: leaf.length,
-      runLength: 0
-    });
-    leafBuffers.push(leaf);
-    leafOffset += leaf.length;
+  // PMTiles requires the root to fit inside the first 16 KiB. Grow leaves
+  // until their compressed root fits, including for very large exports.
+  for (let leafSize = ROOT_LEAF_SIZE; ; leafSize *= 2) {
+    const rootEntries = [];
+    const leafBuffers = [];
+    let leafOffset = 0;
+    for (let index = 0; index < entries.length; index += leafSize) {
+      const leafEntries = entries.slice(index, index + leafSize);
+      const leaf = gzipSync(serializeDirectory(leafEntries));
+      rootEntries.push({ tileId: leafEntries[0].tileId, offset: leafOffset, length: leaf.length, runLength: 0 });
+      leafBuffers.push(leaf);
+      leafOffset += leaf.length;
+    }
+    const root = gzipSync(serializeDirectory(rootEntries));
+    if (root.length <= MAX_ROOT_BYTES) return { root, leaves: Buffer.concat(leafBuffers) };
   }
-
-  return {
-    root: serializeDirectory(rootEntries),
-    leaves: Buffer.concat(leafBuffers)
-  };
 }
 
 /**
@@ -200,7 +197,9 @@ function pushVarint(chunks, value) {
  *   minZoom: number,
  *   maxZoom: number,
  *   bbox: [number, number, number, number],
- *   centerZoom: number
+ *   centerZoom: number,
+ *   clustered: boolean,
+ *   tileCompression: number
  * }} options
  * @returns {Buffer}
  */
@@ -221,9 +220,9 @@ function createHeader(options) {
   setUint64(view, 72, options.numAddressedTiles);
   setUint64(view, 80, options.numTileEntries);
   setUint64(view, 88, options.numTileContents);
-  header.writeUInt8(1, 96);
-  header.writeUInt8(Compression.None, 97);
-  header.writeUInt8(Compression.None, 98);
+  header.writeUInt8(options.clustered ? 1 : 0, 96);
+  header.writeUInt8(Compression.Gzip, 97);
+  header.writeUInt8(options.tileCompression, 98);
   header.writeUInt8(TileType.Mvt, 99);
   header.writeUInt8(options.minZoom, 100);
   header.writeUInt8(options.maxZoom, 101);

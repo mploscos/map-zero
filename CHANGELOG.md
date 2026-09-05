@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+- Updated Cesium to 1.145.0; OpenLayers remains at 10.10.0. Aligned all map-zero package versions and derive CLI version from package metadata.
+- Added native Cesium MVT rendering with 1.145 terrain/3D Tiles draping, shared theme styling, and a readonly XYZ endpoint backed by the same PMTiles archive as OpenLayers. Both viewers use vector rendering; removed raster-worker modes, imagery provider, worker routes and `@map-zero/raster`. Shared rules and caches now live in `@map-zero/core`.
+- Enabled explicit rendering in the built-in Cesium viewer and corrected per-layer opacity, visibility and worker cleanup.
+- Bounded OL label/style caches, shared PMTiles reads and retries after failed tile loads.
+- Added native Cesium labels using the loaded MVT tiles, shared theme rules, stable anchors, priority decluttering, per-layer controls and a labels toggle. Re-export existing PMTiles for the new anchor fields.
+- Compressed PMTiles payloads and directories, bounded root directory size, corrected clustered metadata and fixed pending-write accounting in parallel exports.
+- Removed duplicate 3D features across leaves and implicit truncation in dense flat layers; preserved individual tileset URLs for multi-layer exports.
+- Reduced GLB index overhead and corrected quantized normal alignment and extension declarations.
+- Added export/rendering regression tests, browser smoke checks, a performance review, and reproducible README GIFs of generation and 2D/3D viewers.
+
 ## 0.3.2
 
 - Updated OpenLayers to 10.10.0 and aligned browser imports with its published

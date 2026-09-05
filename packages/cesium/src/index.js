@@ -1,16 +1,12 @@
+import { createMapZeroVectorContext } from './vector.js';
 import {
   Cesium3DTileColorBlendMode,
   Cesium3DTileStyle,
-  Cesium3DTileset,
-  ImageryLayer
+  Cesium3DTileset
 } from 'cesium';
-import {
-  contextOverlayConfig,
-  hasMapZeroContextOverlay,
-  MapZeroCesiumImageryProvider
-} from './imagery.js';
 
-export { MapZeroCesiumImageryProvider } from './imagery.js';
+
+export { createNativeVectorStyle, vectorZoomRange } from './vector.js';
 
 let autoInstanceCounter = 0;
 
@@ -160,10 +156,12 @@ export async function createMapZeroCesiumTilesets(options) {
  *   tilesetOpacity?: number,
  *   buildingsOpacity?: number,
  *   contextOverlay?: boolean,
+ *   vectorTilesUrl?: string,
+ *   vectorMaxZoom?: number,
+ *   labels?: boolean,
+ *   maxLabels?: number,
+ *   vectorHeightReference?: import('cesium').HeightReference,
  *   contextOpacity?: number,
- *   contextOverzoomLevels?: number,
- *   contextEdgeGuardPixels?: number,
- *   workerUrl?: string | URL,
  *   buildings3d?: boolean,
  *   tilesetMaximumScreenSpaceError?: number,
  *   tilesetCacheBytes?: number,
@@ -178,8 +176,9 @@ export async function createMapZeroCesiumTilesets(options) {
  *   manifest: MapZeroManifest,
  *   style: Record<string, unknown> | null,
  *   tilesets: Record<string, Cesium3DTileset>,
- *   imageryProvider?: MapZeroCesiumImageryProvider,
- *   imageryLayer?: ImageryLayer,
+ *   vectorProvider?: import('cesium').MVTDataProvider,
+ *   labelCollection?: import('cesium').LabelCollection,
+ *   setLabelsVisible: (visible: boolean) => void,
  *   setVisible: (layerId: string, visible: boolean) => void,
  *   setOpacity: (layerId: string, opacity: number) => void,
  *   destroy: () => void
@@ -196,27 +195,18 @@ export async function addMapZeroToCesium(viewer, options) {
   const result = await createMapZeroCesiumTilesets(options);
   const uniqueTilesets = [...new Set(Object.values(result.tilesets))];
   const visibleLayers = new Set(Object.keys(result.tilesets));
-  let opacity = options.tilesetOpacity ?? options.opacity ?? 1;
-  const imageryProvider = shouldCreateContextOverlay(result.manifest, options)
-    ? new MapZeroCesiumImageryProvider({
-        manifest: result.manifest,
-        manifestUrl: options.manifestUrl,
-        styleDocument: result.style,
-        layers: contextOverlayConfig(result.manifest)?.layers,
-        overzoomLevels: options.contextOverzoomLevels,
-        edgeGuardPixels: options.contextEdgeGuardPixels,
-        workerUrl: options.workerUrl
-      })
-    : undefined;
-  const imageryLayer = imageryProvider
-    ? new ImageryLayer(imageryProvider, {
-        alpha: clamp01(Number(options.contextOpacity ?? options.opacity ?? 1)),
-        show: true
-      })
-    : undefined;
-
-  if (imageryLayer) {
-    viewer.imageryLayers?.add(imageryLayer);
+  let vectorContext;
+  try {
+    if (options.contextOverlay !== false) {
+      vectorContext = await createMapZeroVectorContext(viewer, {
+        ...options, manifest: result.manifest, styleDocument: result.style,
+        excludedLayers: Object.keys(result.tilesets)
+      });
+      viewer.scene.primitives.add(vectorContext.provider);
+    }
+  } catch (error) {
+    for (const tileset of uniqueTilesets) tileset.destroy();
+    throw error;
   }
   for (const tileset of uniqueTilesets) {
     viewer.scene.primitives.add(tileset);
@@ -233,40 +223,34 @@ export async function addMapZeroToCesium(viewer, options) {
     id: result.id,
     style: result.style,
     tilesets: result.tilesets,
-    imageryProvider,
-    imageryLayer,
+    vectorProvider: vectorContext?.provider,
+    vectorRange: vectorContext?.range,
+    labelCollection: vectorContext?.labels?.collection,
+    setLabelsVisible(visible) { vectorContext?.labels?.setVisible(visible); },
     setVisible(layerId, visible) {
+      vectorContext?.setVisible(layerId, visible);
       const tileset = result.tilesets[layerId];
-      if (tileset) {
-        if (visible) {
-          visibleLayers.add(layerId);
-        } else {
-          visibleLayers.delete(layerId);
-        }
-        applyStyleToTilesetMap(result.tilesets, result.style, {
-          opacity,
-          visibleLayers
-        });
-      }
-      imageryProvider?.setLayerVisible(layerId, visible);
-      imageryProvider?.setLayerVisible(layerId === 'aviation' ? 'aip' : layerId, visible);
+      if (tileset) tileset.show = Boolean(visible);
       viewer.scene?.requestRender?.();
     },
     setOpacity(layerId, nextOpacity) {
-      if (!result.tilesets[layerId]) return;
-      opacity = clamp01(Number(nextOpacity));
-      applyStyleToTilesetMap(result.tilesets, result.style, {
-        opacity,
+      vectorContext?.setOpacity(layerId, nextOpacity);
+      const tileset = result.tilesets[layerId];
+      if (!tileset) return;
+      tileset.style = createMapZeroCesiumStyle(result.style, {
+        layerId,
+        opacity: clamp01(Number(nextOpacity)),
         visibleLayers
       });
+      viewer.scene?.requestRender?.();
     },
     destroy() {
-      if (imageryLayer) {
-        viewer.imageryLayers?.remove(imageryLayer, true);
-      }
+      vectorContext?.destroy();
+      if (vectorContext) viewer.scene.primitives.remove(vectorContext.provider);
       for (const tileset of uniqueTilesets) {
         viewer.scene.primitives.remove(tileset);
       }
+      viewer.scene?.requestRender?.();
     }
   };
 }
@@ -353,21 +337,6 @@ function cesiumLayerMaterial(rule, layerId) {
 }
 
 /**
- * @param {Record<string, Cesium3DTileset>} tilesets
- * @param {Record<string, unknown> | null} style
- * @param {{ opacity: number, visibleLayers: Set<string> }} options
- */
-function applyStyleToTilesetMap(tilesets, style, options) {
-  for (const [layerId, tileset] of Object.entries(tilesets)) {
-    tileset.style = createMapZeroCesiumStyle(style, {
-      layerId,
-      opacity: options.opacity,
-      visibleLayers: options.visibleLayers
-    });
-  }
-}
-
-/**
  * @param {string} layerId
  * @param {{ opacity?: number, tilesetOpacity?: number, buildingsOpacity?: number }} options
  * @returns {number}
@@ -398,6 +367,11 @@ function layerStyle(styleJson, layerId) {
  * @returns {Array<{ layerId: string, url: string }>}
  */
 function manifestTilesetEntries(manifest, options = {}) {
+  if (manifest.tiles3d?.format === '3dtiles' && manifest.tiles3d.tilesets) {
+    return Object.entries(manifest.tiles3d.tilesets)
+      .filter(([layerId, url]) => typeof url === 'string' && isAllowedCesiumTilesetLayer(layerId, options))
+      .map(([layerId, url]) => ({ layerId, url }));
+  }
   if (manifest.tiles3d?.format === '3dtiles' && typeof manifest.tiles3d.url === 'string') {
     const layers = Array.isArray(manifest.tiles3d.layers) && manifest.tiles3d.layers.length > 0
       ? manifest.tiles3d.layers.map(String)
@@ -422,17 +396,6 @@ function isAllowedCesiumTilesetLayer(layerId, options) {
   return layerId !== 'buildings' || options.buildings3d !== false;
 }
 
-/**
- * @param {MapZeroManifest} manifest
- * @param {{ contextOverlay?: boolean }} options
- * @returns {boolean}
- */
-function shouldCreateContextOverlay(manifest, options) {
-  if (options.contextOverlay === false) {
-    return false;
-  }
-  return hasMapZeroContextOverlay(manifest);
-}
 
 /**
  * @param {Cesium3DTileset} tileset

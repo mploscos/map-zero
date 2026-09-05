@@ -43,6 +43,14 @@ await addMapZeroToOpenLayers(map, {
 });
 ```
 
+## Rendering and memory in 0.4.0
+
+Geometry and labels share one PMTiles reader and a bounded 128-entry tile-data cache. Their geometry decoding remains separate because labels use editable features and WebGL uses compact render features. Label styles are limited to 2,048 cached entries.
+
+Version 0.4.0 removes raster-worker rendering and its worker options. Geometry uses WebGL and text uses OpenLayers’ native placement and decluttering. Cache limits count entries, not bytes.
+
+Cesium 1.145 can now use the same MVT payloads natively. The shared theme provides common styling inputs, with renderer-specific cartographic differences documented in [Cesium integration](cesium.md).
+
 ## Multiple Packages
 
 Each call creates an isolated package instance:
@@ -89,20 +97,6 @@ await addMapZeroToOpenLayers(map, {
 ```
 
 Shared style objects are treated as readonly.
-
-## Raster Worker
-
-The optional `renderMode: 'raster-worker'` path uses the shared
-`@map-zero/raster/imagery-worker.js` worker. Pass `workerUrl` when your bundler
-copies or fingerprints worker assets:
-
-```js
-await addMapZeroToOpenLayers(map, {
-  manifestUrl: './madrid.mapzero/manifest.json',
-  renderMode: 'raster-worker',
-  workerUrl: new URL('@map-zero/raster/imagery-worker.js', import.meta.url)
-});
-```
 
 ## Controller
 

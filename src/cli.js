@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { clearLine, cursorTo } from 'node:readline';
 
 import { Command, InvalidArgumentError } from 'commander';
@@ -19,7 +20,7 @@ const program = new Command();
 program
   .name('map-zero')
   .description('Build and serve lightweight offline vector map packages from OSM PBF data.')
-  .version('0.3.0');
+  .version(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
 
 program
   .command('build')
@@ -167,7 +168,7 @@ program
   .description('Export Cesium 3D Tiles from a .mapzero package.')
   .argument('<package.mapzero>', 'map-zero package folder')
   .option('--out <dir>', 'output 3D Tiles folder; defaults to <package>/3dtiles')
-  .option('--layers <layers>', 'comma-separated 3D layers; defaults to all supported 3D layers', parse3dTilesLayersOption)
+  .option('--layers <layers>', 'comma-separated 3D layers; defaults to buildings', parse3dTilesLayersOption)
   .option('--max-depth <count>', 'quadtree depth for building tiles', parseNonNegativeIntegerOption, 8)
   .option('--max-features <count>', 'maximum features per leaf tile before subdivision', parsePositiveIntegerOption, 1500)
   .option('--default-height <meters>', 'fallback building height in meters', parsePositiveNumberOption, 8)

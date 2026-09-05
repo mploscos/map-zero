@@ -1,6 +1,8 @@
 import { createWriteStream, promises as fs } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { availableParallelism } from 'node:os';
+import { gzipSync } from 'node:zlib';
+import { Compression } from 'pmtiles';
 import { Worker } from 'node:worker_threads';
 
 import { openGeoPackageReader } from './gpkg-read.js';
@@ -129,7 +131,7 @@ export async function exportPmtiles(options) {
           onProgress: options.onProgress,
           workers
         });
-        entries.push(...result.entries);
+        for (const entry of result.entries) entries.push(entry);
         tileDataOffset = result.tileDataOffset;
         writtenTiles += result.writtenTiles;
         skippedEmptyTiles += result.skippedEmptyTiles;
@@ -149,7 +151,7 @@ export async function exportPmtiles(options) {
           workers,
           onProgress: options.onProgress
         });
-        entries.push(...result.entries);
+        for (const entry of result.entries) entries.push(entry);
         tileDataOffset = result.tileDataOffset;
         writtenTiles += result.writtenTiles;
         skippedEmptyTiles += result.skippedEmptyTiles;
@@ -159,6 +161,7 @@ export async function exportPmtiles(options) {
     await closeWriteStream(tileDataStream);
   } catch (error) {
     tileDataStream.destroy();
+    await fs.rm(tmpTileDataPath, { force: true });
     throw error;
   } finally {
     try {
@@ -182,6 +185,7 @@ export async function exportPmtiles(options) {
     minZoom,
     maxZoom,
     bbox,
+    tileCompression: Compression.Gzip,
     centerZoom: Math.min(Math.max(12, minZoom), maxZoom)
   });
   await fs.rm(tmpTileDataPath, { force: true });
@@ -247,16 +251,17 @@ async function exportZoomSequential(options) {
       continue;
     }
 
-    await writeStreamChunk(options.tileDataStream, result.buffer);
+    const buffer = gzipSync(result.buffer, { level: 1 });
+    await writeStreamChunk(options.tileDataStream, buffer);
     entries.push({
       tileId: task.tileId,
       offset: tileDataOffset,
-      length: result.buffer.length,
+      length: buffer.length,
       runLength: 1
     });
-    tileDataOffset += result.buffer.length;
+    tileDataOffset += buffer.length;
     writtenTiles += 1;
-    tileBytes += result.buffer.length;
+    tileBytes += buffer.length;
     progress.update({ writtenTiles, skippedEmptyTiles, tileBytes });
   }
 
@@ -394,7 +399,6 @@ function exportZoomParallel(options) {
 
         (async () => {
           try {
-            activeJobs -= 1;
             if (message.empty) {
               skippedEmptyTiles += 1;
             } else {
@@ -413,6 +417,7 @@ function exportZoomParallel(options) {
               tileBytes += buffer.length;
             }
 
+            activeJobs -= 1;
             progress.update({ writtenTiles, skippedEmptyTiles, tileBytes });
             assign(worker);
           } catch (error) {
@@ -422,7 +427,7 @@ function exportZoomParallel(options) {
       });
       worker.on('error', fail);
       worker.on('exit', (code) => {
-        if (!closing && code !== 0) {
+        if (!closing) {
           fail(new Error(`PMTiles worker exited with code ${code}`));
         }
       });
@@ -931,7 +936,10 @@ function fieldsForLayer(style, layerId) {
   const fields = {
     id: 'String',
     name: 'String',
-    layer: 'String'
+    layer: 'String',
+    mapzero_geometry: 'String',
+    mapzero_label_lon: 'Number',
+    mapzero_label_lat: 'Number'
   };
   const byProperty = /** @type {Record<string, unknown> | undefined} */ (layerStyleRule(style, layerId).byProperty);
   if (byProperty) {

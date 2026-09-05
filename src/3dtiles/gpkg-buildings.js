@@ -97,7 +97,7 @@ export function countBuildings(db, metadata, bbox) {
  * @param {Database.Database} db
  * @param {BuildingMetadata} metadata
  * @param {[number, number, number, number]} bbox
- * @param {{ defaultHeight: number, limit?: number, warn?: (message: string) => void }} options
+ * @param {{ defaultHeight: number, limit?: number, seenIds?: Set<number>, warn?: (message: string) => void }} options
  * @returns {{ footprints: import('./extrude.js').Footprint[], skipped: number }}
  */
 export function readBuildingFootprints(db, metadata, bbox, options) {
@@ -108,7 +108,7 @@ export function readBuildingFootprints(db, metadata, bbox, options) {
     params.push(Number(options.limit));
   }
   const rows = db.prepare(`
-    SELECT feature_table.*
+    SELECT feature_table.rowid AS __mapzero_rowid, feature_table.*
     FROM ${quoteIdentifier(metadata.table)} AS feature_table
     JOIN ${quoteIdentifier(metadata.rtree)} AS rtree_table
       ON feature_table.rowid = rtree_table.id
@@ -117,11 +117,13 @@ export function readBuildingFootprints(db, metadata, bbox, options) {
       AND rtree_table.miny <= ?
       AND rtree_table.maxy >= ?
     ${limitClause}
-  `).all(...params);
+  `).iterate(...params);
   const footprints = [];
   let skipped = 0;
 
   for (const row of rows) {
+    if (options.seenIds?.has(row.__mapzero_rowid)) continue;
+    options.seenIds?.add(row.__mapzero_rowid);
     const geometry = decodeGeoPackageGeometry(row[metadata.geometryColumn]);
     if (!geometry) {
       skipped++;
@@ -143,7 +145,7 @@ export function readBuildingFootprints(db, metadata, bbox, options) {
       }
 
       const footprintBbox = ringBbox(outerRing);
-      if (!bboxIntersects(footprintBbox, bbox)) {
+      if (!options.seenIds && !bboxIntersects(footprintBbox, bbox)) {
         continue;
       }
 

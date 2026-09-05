@@ -54,8 +54,8 @@ export function buildMergedExtrudedPolygonMesh(footprints, options = {}) {
     }
 
     const vertexOffset = positions.length / 3;
-    positions.push(...mesh.positions);
-    normals.push(...mesh.normals);
+    for (const value of mesh.positions) positions.push(value);
+    for (const value of mesh.normals) normals.push(value);
     for (const index of mesh.indices) {
       indices.push(index + vertexOffset);
     }

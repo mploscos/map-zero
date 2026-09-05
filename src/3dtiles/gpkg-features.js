@@ -94,7 +94,7 @@ export function countLayerFeatures(db, metadata, bbox) {
  * @param {import('better-sqlite3').Database} db
  * @param {LayerMetadata} metadata
  * @param {[number, number, number, number]} bbox
- * @param {{ limit?: number }} [options]
+ * @param {{ limit?: number, seenIds?: Set<number> }} [options]
  * @returns {Array<{ type: 'Feature', geometry: Record<string, unknown>, properties: Record<string, unknown> }>}
  */
 export function readLayerFeatures(db, metadata, bbox, options = {}) {
@@ -106,7 +106,7 @@ export function readLayerFeatures(db, metadata, bbox, options = {}) {
   }
 
   const rows = db.prepare(`
-    SELECT feature_table.*
+    SELECT feature_table.rowid AS __mapzero_rowid, feature_table.*
     FROM ${quoteIdentifier(metadata.table)} AS feature_table
     JOIN ${quoteIdentifier(metadata.rtree)} AS rtree_table
       ON feature_table.rowid = rtree_table.id
@@ -115,9 +115,16 @@ export function readLayerFeatures(db, metadata, bbox, options = {}) {
       AND rtree_table.miny <= ?
       AND rtree_table.maxy >= ?
     ${limitClause}
-  `).all(...params);
+  `).iterate(...params);
 
-  return rows.map((row) => rowToFeature(row, metadata.geometryColumn)).filter(Boolean);
+  const features = [];
+  for (const row of rows) {
+    if (options.seenIds?.has(row.__mapzero_rowid)) continue;
+    options.seenIds?.add(row.__mapzero_rowid);
+    const feature = rowToFeature(row, metadata.geometryColumn);
+    if (feature) features.push(feature);
+  }
+  return features;
 }
 
 /**
@@ -133,7 +140,7 @@ function rowToFeature(row, geometryColumn) {
 
   const properties = {};
   for (const [key, value] of Object.entries(row)) {
-    if (key !== geometryColumn) {
+    if (key !== geometryColumn && key !== '__mapzero_rowid') {
       properties[key] = value;
     }
   }

@@ -156,7 +156,6 @@ export function createViewerHtml(options = {}) {
           manifest,
           style: 'default',
           hitDetection: false,
-          ...readRenderOptions(),
           onTileLoadStart() {
             loadingTiles += 1;
             updateStatus();
@@ -172,6 +171,8 @@ export function createViewerHtml(options = {}) {
           }
         });
 
+        globalThis.mapZeroMap = map;
+        globalThis.mapZeroController = controller;
         document.body.style.background = controller.style.background || '#000000';
 
         for (const layerId of controller.manifest.layers || []) {
@@ -211,16 +212,6 @@ export function createViewerHtml(options = {}) {
             : 'tiles: ready';
         const layerLines = [...layerStatus.entries()].map(([layer, status]) => layer + ': ' + status);
         statusEl.textContent = [tileStatus, ...layerLines].join('\\n');
-      }
-
-      function readRenderOptions() {
-        const params = new URLSearchParams(window.location.search);
-        const render = params.get('render');
-        const options = {};
-        if (render === 'raster' || render === 'raster-worker') {
-          options.renderMode = 'raster-worker';
-        }
-        return options;
       }
 
       function centerOfBbox(bbox) {
@@ -302,8 +293,8 @@ export function createCesiumViewerHtml(options = {}) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>map-zero Cesium</title>
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Cesium.js"></script>
-    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.141/Build/Cesium/Widgets/widgets.css">
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
     <script type="importmap">
       {
         "imports": {
@@ -421,6 +412,7 @@ export function createCesiumViewerHtml(options = {}) {
         <h1 id="title">map-zero 3D</h1>
         <div class="control-list">
           <div id="layerControls"></div>
+          <label class="control-row"><span>labels</span><input id="labelsVisible" type="checkbox" checked></label>
           <label class="control-row">
             <span>opacity</span>
             <input id="layerOpacity" type="range" min="0.15" max="1" step="0.05" value="1">
@@ -452,10 +444,10 @@ export function createCesiumViewerHtml(options = {}) {
         statusEl.textContent = 'Loading manifest';
         const manifest = await loadMapZeroManifest('/manifest.json');
         titleEl.textContent = (manifest.name || 'map-zero') + ' 3D';
-        if (!manifest.tiles3d) {
+        if (!manifest.tiles3d && !manifest.tiles) {
           throw new Error('This package does not define manifest.tiles3d. Run: map-zero 3dtiles <package.mapzero>');
         }
-        const sourceLabel = manifest.tiles3d?.url || '3dtiles';
+        const sourceLabel = manifest.tiles3d?.url || manifest.tiles?.url || 'MVT';
 
         statusEl.textContent = 'Creating Cesium viewer';
         const Cesium = globalThis.Cesium;
@@ -463,6 +455,8 @@ export function createCesiumViewerHtml(options = {}) {
         const bbox = normalizeBbox(manifest.bbox);
         const tiles3dBbox = normalizeBbox(manifest.tiles3d?.bbox || manifest.bbox);
         const viewer = new Cesium.Viewer('cesiumContainer', {
+          requestRenderMode: true,
+          maximumRenderTimeChange: Infinity,
           animation: false,
           baseLayer: false,
           baseLayerPicker: false,
@@ -485,7 +479,8 @@ export function createCesiumViewerHtml(options = {}) {
           style: 'default',
           opacity: Number(opacityEl.value),
           contextOverlay: params.get('overlay') !== '0',
-          contextOverzoomLevels: params.has('overzoom') ? Number(params.get('overzoom')) : undefined,
+          vectorTilesUrl: '/api/vector-tiles/{z}/{x}/{y}.mvt',
+          labels: params.get('labels') !== '0',
           zoomTo: false,
           applyDefaultSceneStyle: true
         });
@@ -555,8 +550,12 @@ export function createCesiumViewerHtml(options = {}) {
         ].join('\\n');
 
         createLayerControls(layerControlsEl, controller);
+        const labelsEl = document.getElementById('labelsVisible');
+        labelsEl.checked = params.get('labels') !== '0';
+        labelsEl.disabled = !controller.labelCollection;
+        labelsEl.addEventListener('change', () => controller.setLabelsVisible(labelsEl.checked));
         opacityEl.addEventListener('input', () => {
-          for (const layerId of Object.keys(controller.tilesets)) {
+          for (const layerId of controller.manifest.layers || []) {
             controller.setOpacity(layerId, Number(opacityEl.value));
           }
         });
@@ -564,7 +563,7 @@ export function createCesiumViewerHtml(options = {}) {
 
       function createLayerControls(container, controller) {
         container.textContent = '';
-        for (const layerId of Object.keys(controller.tilesets)) {
+        for (const layerId of controller.manifest.layers || []) {
           const label = document.createElement('label');
           label.className = 'control-row';
 

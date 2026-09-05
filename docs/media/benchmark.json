@@ -1,0 +1,86 @@
+{
+  "bbox": [
+    -3.71,
+    40.413,
+    -3.696,
+    40.422
+  ],
+  "node": "22.21.1",
+  "buildingMaxFeatures": 1000,
+  "buildingMaxDepth": 8,
+  "runs": [
+    {
+      "version": "before",
+      "format": "pmtiles",
+      "workers": 1,
+      "ms": 6612,
+      "minZoom": 8,
+      "maxZoom": 16,
+      "estimatedTiles": 125,
+      "writtenTiles": 118,
+      "skippedEmptyTiles": 7,
+      "outputBytes": 1013568
+    },
+    {
+      "version": "before",
+      "format": "pmtiles",
+      "workers": 2,
+      "ms": 5191,
+      "minZoom": 8,
+      "maxZoom": 16,
+      "estimatedTiles": 125,
+      "writtenTiles": 118,
+      "skippedEmptyTiles": 7,
+      "outputBytes": 1013564
+    },
+    {
+      "version": "before",
+      "format": "3dtiles",
+      "ms": 367,
+      "leafCount": 4,
+      "writtenTiles": 4,
+      "skippedTiles": 0,
+      "outputBytes": 6222764
+    },
+    {
+      "version": "after",
+      "format": "pmtiles",
+      "workers": 1,
+      "ms": 6480,
+      "minZoom": 8,
+      "maxZoom": 16,
+      "estimatedTiles": 125,
+      "writtenTiles": 118,
+      "skippedEmptyTiles": 7,
+      "outputBytes": 652340
+    },
+    {
+      "version": "after",
+      "format": "pmtiles",
+      "workers": 2,
+      "ms": 5513,
+      "minZoom": 8,
+      "maxZoom": 16,
+      "estimatedTiles": 125,
+      "writtenTiles": 118,
+      "skippedEmptyTiles": 7,
+      "outputBytes": 652348
+    },
+    {
+      "version": "after",
+      "format": "3dtiles",
+      "ms": 338,
+      "leafCount": 4,
+      "writtenTiles": 4,
+      "skippedTiles": 0,
+      "outputBytes": 4937545
+    }
+  ],
+  "finalLabelMetadata": {
+    "format": "pmtiles",
+    "workers": 4,
+    "outputBytes": 719745,
+    "writtenTiles": 118,
+    "note": "Final archive includes geometry type and stable label anchors; timings above predate labels."
+  }
+}

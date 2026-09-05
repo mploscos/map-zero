@@ -49,19 +49,21 @@ export function buildGlbFromMesh(mesh, options = {}) {
       ? mesh.normals
       : quantizeNormals(mesh.normals);
     const normalView = appendBuffer(binBuilder, bufferFromTypedArray(normals), 4);
-    bufferViews.push({ buffer: 0, byteOffset: normalView.byteOffset, byteLength: normalView.byteLength, target: 34962 });
+    bufferViews.push({ buffer: 0, byteOffset: normalView.byteOffset, byteLength: normalView.byteLength, ...(normals instanceof Float32Array ? {} : { byteStride: 4 }), target: 34962 });
     attributes.NORMAL = accessors.length;
     accessors.push({
       bufferView: bufferViews.length - 1,
       byteOffset: 0,
       componentType: normals instanceof Float32Array ? 5126 : 5120,
-      count: normals.length / 3,
+      count: mesh.normals.length / 3,
       type: 'VEC3',
       ...(normals instanceof Float32Array ? {} : { normalized: true })
     });
   }
 
-  const hasIndices = mesh.indices.length > 0;
+  const sequentialIndices = mesh.indices.length === mesh.positions.length / 3
+    && mesh.indices.every((index, offset) => index === offset);
+  const hasIndices = mesh.indices.length > 0 && !sequentialIndices;
   let indexAccessor = null;
   if (hasIndices) {
     const indexView = appendBuffer(binBuilder, bufferFromTypedArray(mesh.indices), 4);
@@ -120,6 +122,11 @@ export function buildGlbFromMesh(mesh, options = {}) {
     gltf.extensionsUsed = ['KHR_materials_unlit'];
   }
 
+  if (includeNormals && options.quantizeNormals !== false) {
+    (gltf.extensionsUsed ??= []).push('KHR_mesh_quantization');
+    gltf.extensionsRequired = ['KHR_mesh_quantization'];
+  }
+
   return buildGlb(gltf, bin);
 }
 
@@ -142,10 +149,10 @@ function bufferFromTypedArray(typedArray) {
  * @returns {Int8Array}
  */
 function quantizeNormals(normals) {
-  const quantized = new Int8Array(normals.length);
+  const quantized = new Int8Array(normals.length / 3 * 4);
   for (let i = 0; i < normals.length; i++) {
     const value = Math.max(-1, Math.min(1, Number.isFinite(normals[i]) ? normals[i] : 0));
-    quantized[i] = Math.round(value * 127);
+    quantized[Math.floor(i / 3) * 4 + i % 3] = Math.round(value * 127);
   }
   return quantized;
 }

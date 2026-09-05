@@ -1,243 +1,180 @@
+<div align="center">
+
 # map-zero
 
-**Turn OpenStreetMap data into portable, self-contained map packages for 2D, 3D, and offline applications.**
+### Your map. Your data. Anywhere.
 
-`map-zero` builds normalized GeoPackage source data, vector PMTiles for OpenLayers, and Cesium 3D Tiles from one workflow. A package can also include external JSON styles, a `manifest.json`, and an optional portable ZIP. It runs without API keys, hosted map APIs, or external map infrastructure at runtime.
+**Draw an area. Build your map. Explore it in 2D and 3D.**
 
-`map-zero` packages standard GIS and web formats into one directory. It is intended for local-first applications, offline deployments, static hosting, and projects that need both 2D and 3D map outputs from the same OpenStreetMap data.
+![Version 0.4.0](https://img.shields.io/badge/version-0.4.0-48d6bd)
+[![npm](https://img.shields.io/npm/v/map-zero)](https://www.npmjs.com/package/map-zero)
+[![MIT license](https://img.shields.io/badge/license-MIT-a9bbc9)](LICENSE)
 
-> Early alpha. The package layout and APIs are usable, but still evolving.
+[Get started](#quick-start) · [See it in action](#see-it-in-action) · [Documentation](#documentation)
+
+</div>
+
+Turn a selected area or a local OpenStreetMap extract into a portable map package. Keep your data on your own machine, share it as a ZIP, or serve it from your infrastructure. Explore the same map in **2D with OpenLayers** and **3D with Cesium**, without map API keys.
+
+> **New in 0.4.0:** native vector maps and labels in Cesium, smaller exported files, and lower rendering activity while the 3D view is idle. [Release notes](CHANGELOG.md) · [Upgrading from 0.3.x](docs/migration-0.4.0.md)
 
 ## Quick Start
 
-The easiest way to build a package is to select an area on a map:
+Use Node.js 22 or newer. Install the CLI and open the map builder:
 
 ```bash
-npm install
-node src/cli.js bbox-ui --output-root ./generated
+npm install --global map-zero
+map-zero bbox-ui --output-root ./generated
 ```
 
-Open the printed local URL, draw or enter a bounding box, choose layers and outputs, then select **Build map-zero**. The UI downloads suitable OpenStreetMap data, builds the package, and can export PMTiles, 3D Tiles, and a ZIP in the same job.
+1. Open **http://127.0.0.1:8090**.
+2. Click **Draw bbox** and mark your area, or paste its coordinates.
+3. Name the output `madrid.mapzero`, choose layers and formats, then click **Build map-zero**.
+
+The builder downloads suitable OpenStreetMap data, reuses cached downloads when available, and shows progress as it creates your package. Start with a small area; larger extracts and higher zoom levels take longer.
+
+When the build finishes, open your map:
+
+```bash
+map-zero serve ./generated/madrid.mapzero --port 8080
+```
+
+- **2D:** http://127.0.0.1:8080
+- **3D:** http://127.0.0.1:8080/cesium
+
+Keep **3D Tiles** enabled when building to include extruded buildings in the 3D view. Generated files stay under the output directory you selected.
+
+## See it in action
+
+### 01 · Draw an area and build
+
+Select your area **directly on a map** with `bbox-ui`: draw a rectangle, adjust its corners, choose layers and outputs, then click **Build map-zero**. The builder finds suitable OpenStreetMap extracts and generates your package locally, including PMTiles, 3D Tiles and a ZIP.
+
+![The real bbox builder: drawing a rectangle over Madrid and choosing the package name and outputs](docs/media/bbox-builder.gif)
+
+```bash
+npx map-zero@0.4.0 bbox-ui --output-root ./generated
+```
+
+Open **http://127.0.0.1:8090**. You can also paste coordinates into the bbox field. The animation shows area selection and output configuration; build progress appears in the UI after submitting the job.
+
+<details>
+<summary>See the generation pipeline in the terminal</summary>
+
+This animation replays **real CLI output**, with time compressed, from a local OSM extract through GeoPackage, PMTiles and 3D Tiles.
+
+![Actual map-zero generation log, from local Madrid OSM data through GeoPackage, PMTiles and 3D Tiles](docs/media/generate.gif)
+
+</details>
+
+### 02 · Explore in 2D
+
+Pan, zoom and style vector data in OpenLayers. Use layer controls, zoom and labels to explore your area.
+
+![OpenLayers displaying the generated Madrid map with animated zoom and rotation](docs/media/openlayers-2d.gif)
+
+### 03 · Discover in 3D
+
+Explore the same area in 3D, with buildings, map features and labels.
+
+![Cesium 1.145 orbiting Madrid with vector maps, labels and generated 3D buildings](docs/media/cesium-3d.gif)
+
+*Real viewer captures using local OpenStreetMap data, © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). [Recording instructions and static previews](docs/media/README.md).*
 
 ## What You Get
 
-Each map is a self-contained `.mapzero` package composed of standard files:
+One `.mapzero` folder contains your map data, styles and selected exports:
 
-```text
-my-area.mapzero/
-  data.gpkg             # normalized OpenStreetMap source data
-  manifest.json         # package metadata and asset locations
-  tiles.pmtiles         # optional vector tiles for 2D maps
-  3dtiles/              # optional Cesium 3D Tiles
-  styles/               # external JSON cartographic styles
+```mermaid
+flowchart TD
+    AREA["Draw an area<br/>or choose an OSM file"] --> BUILD["map-zero"]
+    subgraph PACKAGE["Your portable map package"]
+        DATA[("GeoPackage<br/>Source data")]
+        VECTOR[("PMTiles<br/>Vector map")]
+        BUILDINGS["3D Tiles<br/>Buildings"]
+        DATA --> VECTOR
+        DATA --> BUILDINGS
+    end
+    BUILD --> DATA
+    VECTOR --> MAP2D["Explore in 2D<br/>OpenLayers"]
+    VECTOR --> MAP3D["Explore in 3D<br/>Cesium"]
+    BUILDINGS --> MAP3D
+    classDef source fill:#132b38,stroke:#68a4ff,color:#eef7ff
+    classDef build fill:#163d37,stroke:#48d6bd,color:#e8fff9
+    classDef data fill:#172536,stroke:#7898b8,color:#edf4fc
+    classDef viewer fill:#29203d,stroke:#b39aef,color:#f4efff
+    class AREA source
+    class BUILD build
+    class DATA,VECTOR,BUILDINGS data
+    class MAP2D,MAP3D viewer
 ```
 
-`data.gpkg` is the source for dynamic MVT, PMTiles, and 3D Tiles. `manifest.json` connects the data, styles, and generated assets. Static consumers can use PMTiles and 3D Tiles without running the map-zero server.
+| File or folder | What it gives you |
+| --- | --- |
+| `data.gpkg` | Source features in a standard GeoPackage |
+| `tiles.pmtiles` | A single vector tile archive for your map |
+| `3dtiles/` | Building geometry for 3D viewing |
+| `styles/` | Map colors and appearance |
+| `manifest.json` | Information connecting the package contents |
 
-```text
-             OpenStreetMap
-                   |
-          bbox or local OSM PBF
-                   |
-                   v
-               map-zero
-                   |
-        +----------+----------+
-        |          |          |
-        v          v          v
-    GeoPackage   PMTiles    3D Tiles
-        |          |          |
-        v          v          v
-   source/MVT  OpenLayers   Cesium
-```
+PMTiles and 3D Tiles are optional outputs. The optional ZIP contains the map assets; select **GPKG in ZIP** if you also want the source GeoPackage included.
 
-## How It Works
+Layers include roads, buildings, water, land use, railways, boundaries, points of interest, terrain outlines, coastlines, cliffs and aviation features. Availability depends on OpenStreetMap coverage in your chosen area.
 
-For a bounding box, `bbox-ui` and `from-bbox` use the same pipeline:
+## Other Ways to Build
 
-```text
-bbox
-  -> find suitable Geofabrik extracts
-  -> download or reuse cached OSM PBF files
-  -> build normalized GeoPackage data
-  -> export PMTiles and/or 3D Tiles
-  -> create a portable map-zero package and optional ZIP
-```
-
-`from-bbox` can combine smaller sibling extracts when a bbox crosses an administrative boundary, and can reuse a cached broader extract when appropriate. The default source cache is `~/.cache/map-zero/osm`.
-
-## Why map-zero
-
-- Local-first: one folder per map, with data and generated assets kept together.
-- No API keys or hosted map services are required to render exported map data at runtime.
-- Static deployment is possible for exported PMTiles and 3D Tiles.
-- GeoPackage remains available as a portable source container for inspection and dynamic MVT.
-- The same package can feed OpenLayers in 2D and Cesium in 3D.
-- Outputs use established formats: GeoPackage, MVT, PMTiles, 3D Tiles, and JSON.
-
-Supported logical layers are `roads`, `buildings`, `water`, `terrain`, `coastline`, `cliffs`, `landuse`, `railways`, `boundaries`, `pois`, and `aip`. The older `aviation` name remains an alias for `aip`.
-
-## CLI Workflows
-
-### Build from a bbox
-
-Use the non-interactive equivalent of the bbox UI when the area is already known:
+Already know the coordinates? Build directly from a bounding box:
 
 ```bash
-node src/cli.js from-bbox \
-  --bbox -3.9,40.3,-3.5,40.6 \
-  --out ./madrid.mapzero
+map-zero from-bbox --bbox -3.710,40.413,-3.696,40.422 --out ./madrid.mapzero
 ```
 
-This runs the same pipeline as `bbox-ui`. By default it exports PMTiles at zooms 8-16, 3D Tiles, and `madrid.mapzero.zip`. Use `--no-pmtiles`, `--no-3dtiles`, or `--no-zip` to omit an output; use `--include-gpkg` to retain the source GeoPackage in the ZIP.
-
-### Build from a local PBF
-
-Use `build` when an `.osm.pbf` extract is already available:
+Already have an OSM file? Build locally, then export the map and buildings:
 
 ```bash
-node src/cli.js build ./data/madrid.osm.pbf \
-  --out ./madrid.mapzero
+map-zero build ./area.osm.pbf --out ./area.mapzero
+map-zero pmtiles ./area.mapzero
+map-zero 3dtiles ./area.mapzero
 ```
 
-`build` infers the PBF extent and extracts all supported layers. Crop a larger input with `--bbox`:
+[More CLI workflows and export options](docs/usage.md).
+
+## Customize and Share
+
+Change the map appearance with a bundled theme:
 
 ```bash
-node src/cli.js build ./data/spain.osm.pbf \
-  --bbox -3.9,40.3,-3.5,40.6 \
-  --out ./madrid.mapzero
+map-zero style ./madrid.mapzero --theme neon-dark
 ```
 
-### Preview and dynamic MVT
+Share a portable ZIP, including the source data:
 
 ```bash
-node src/cli.js serve ./madrid.mapzero --port 8080 --open
+map-zero package ./madrid.mapzero --include-gpkg
 ```
 
-`serve` provides a local OpenLayers viewer, a Cesium viewer at `/cesium`, and a readonly HTTP API. It also generates MVT dynamically from `data.gpkg` when PMTiles are absent. It is useful for local inspection, but not required to deploy exported PMTiles or 3D Tiles.
+You can also integrate packages into your own application using **[@map-zero/ol](docs/openlayers.md)** or **[@map-zero/cesium](docs/cesium.md)**. The integration guides cover installation, supported versions, hosting and examples.
 
-### Export or update assets
+## Before You Start
 
-```bash
-# Static vector tiles
-node src/cli.js pmtiles ./madrid.mapzero --minzoom 8 --maxzoom 16
-
-# Cesium-ready 3D Tiles
-node src/cli.js 3dtiles ./madrid.mapzero
-
-# Portable ZIP; data.gpkg is excluded unless requested
-node src/cli.js package ./madrid.mapzero --include-gpkg
-
-# Write a bundled full preset or compact theme
-node src/cli.js style ./madrid.mapzero --preset neon-dark
-node src/cli.js style ./madrid.mapzero --theme neon-dark
-```
-
-For larger regional PMTiles exports, lower the maximum zoom or use more workers:
-
-```bash
-node src/cli.js pmtiles ./andalucia.mapzero --minzoom 8 --maxzoom 12 --workers 4
-```
-
-## Package Structure
-
-The base `build` command writes `data.gpkg`, `manifest.json`, and the default style. Additional commands update the manifest as they add static assets:
-
-```text
-madrid.mapzero/
-  data.gpkg                       # GeoPackage source data
-  manifest.json                   # layers, bbox, styles, tile asset metadata
-  styles/
-    neon-dark.json                # default external style
-  tiles.pmtiles                   # written by `pmtiles` or `from-bbox`
-  3dtiles/
-    buildings/tileset.json        # written by `3dtiles` or `from-bbox`
-```
-
-`package` writes `madrid.mapzero.zip` beside the folder. The archive includes the manifest, referenced styles, PMTiles, and 3D Tiles; it excludes `data.gpkg` by default because static OpenLayers and Cesium consumers do not need it.
-
-PMTiles is a single static file served with HTTP range requests. It can be deployed to static hosting, object storage, nginx, or a CDN that supports range requests. 3D Tiles are likewise static files that Cesium can load from a normal web server.
-
-## OpenLayers
-
-Use `@map-zero/ol` to add a package to an existing OpenLayers map:
-
-```js
-import Map from 'ol/Map.js';
-import View from 'ol/View.js';
-import { addMapZeroToOpenLayers } from '@map-zero/ol';
-
-const map = new Map({
-  target: 'map',
-  layers: [],
-  view: new View({ center: [0, 0], zoom: 12 })
-});
-
-const controller = await addMapZeroToOpenLayers(map, {
-  id: 'madrid',
-  manifestUrl: './madrid.mapzero/manifest.json'
-});
-
-controller.setVisible('buildings', false);
-```
-
-The helper selects vector PMTiles when `manifest.json` provides them and otherwise uses dynamic MVT from the map-zero server. Geometry uses `WebGLVectorTileLayer`; labels use a separate OpenLayers text layer so their attribute data does not affect WebGL geometry buffers. An optional `renderMode: 'raster-worker'` path is available for worker-based raster rendering.
-
-See [OpenLayers integration](docs/openlayers.md).
-
-## Cesium
-
-Use `@map-zero/cesium` to add exported 3D Tiles to an existing Cesium viewer:
-
-```js
-import { Viewer } from 'cesium';
-import { addMapZeroToCesium } from '@map-zero/cesium';
-
-const viewer = new Viewer('cesiumContainer');
-
-const controller = await addMapZeroToCesium(viewer, {
-  id: 'huelva',
-  manifestUrl: './huelva.mapzero/manifest.json',
-  style: 'default'
-});
-
-controller.setOpacity('buildings', 0.8);
-```
-
-Buildings are extruded with `height`, `building:levels * 3`, or a configured fallback height. Roads, railways, boundaries, water, landuse, and AIP features can be exported as flat cartographic meshes. The helper leaves terrain, atmosphere, lighting, fog, and background under application control unless configured otherwise.
-
-The optional Cesium context overlay rasterizes PMTiles in a module worker. It requires `Worker`, `OffscreenCanvas`, and `createImageBitmap`; there is no main-thread fallback.
-
-See [Cesium integration](docs/cesium.md).
-
-## Styles And Themes
-
-Styles are JSON files outside the GeoPackage, allowing the same data to be rendered differently without rebuilding source data or PMTiles. Use a bundled full preset with `--preset`, or a compact theme with `--theme`.
-
-```bash
-node src/cli.js style ./madrid.mapzero --preset neon-dark
-node src/cli.js style ./madrid.mapzero --theme neon-dark
-```
-
-Most users should edit compact theme JSON rather than full renderer-ready style presets. See [styles and themes](docs/styles.md) and [cartography and POIs](docs/cartography.md).
+- This is an early alpha; package formats and integration APIs may change between releases.
+- The tools create readonly maps. Editing OpenStreetMap data is outside their scope.
+- The bbox builder needs internet access for its background map and new source downloads. The bundled viewers currently load their libraries from CDNs; fully offline applications must host those dependencies locally too.
+- Large areas require more time, disk space and memory. Building heights depend on available OpenStreetMap attributes, with estimated heights where necessary.
+- Upgrading an existing package? [Re-export its PMTiles to enable Cesium labels](docs/migration-0.4.0.md).
 
 ## Documentation
 
-- [Architecture](docs/architecture.md)
-- [Styles and themes](docs/styles.md)
-- [Cartography and POIs](docs/cartography.md)
-- [OpenLayers integration](docs/openlayers.md)
-- [Cesium integration](docs/cesium.md)
-- [HTTP API](docs/api.md)
-
-## Current Limitations
-
-- The package format and public APIs are still early alpha.
-- Packages are readonly; editing OpenStreetMap data is not supported.
-- PMTiles export is supported; MBTiles export is not.
-- Cesium export focuses on extruded buildings and flat cartographic context layers. Labels, terrain clamping, advanced metadata, and regional LOD optimization are still future work.
-- The built-in viewers load OpenLayers and Cesium from public CDNs. Map data, PMTiles, and 3D Tiles remain local to the package.
+| I want to… | Guide |
+| --- | --- |
+| Build, export or package maps from the terminal | [CLI workflows](docs/usage.md) |
+| Change colors, labels and visible features | [Styles and themes](docs/styles.md) · [Cartography](docs/cartography.md) |
+| Add a map to my application | [OpenLayers](docs/openlayers.md) · [Cesium](docs/cesium.md) |
+| Upgrade an existing installation | [Migration to 0.4.0](docs/migration-0.4.0.md) |
+| Use the local server API | [HTTP API](docs/api.md) |
+| Understand performance and technical limits | [Performance review](docs/performance.md) |
+| Work on the project | [Development](docs/development.md) · [Architecture](docs/architecture.md) |
 
 ## License
 
-MIT
+[MIT](LICENSE). Map data: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).

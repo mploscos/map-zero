@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib';
 import { parentPort, workerData } from 'node:worker_threads';
 
 import { openGeoPackageReader } from './gpkg-read.js';
@@ -41,10 +42,8 @@ parentPort.on('message', (job) => {
       return;
     }
 
-    const transferable = result.buffer.buffer.slice(
-      result.buffer.byteOffset,
-      result.buffer.byteOffset + result.buffer.byteLength
-    );
+    const buffer = gzipSync(result.buffer, { level: 1 });
+    const transferable = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
     parentPort.postMessage({
       type: 'tile',
       id: job.id,

@@ -2,6 +2,8 @@ import { promises as fs } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, extname, join, resolve } from 'node:path';
 
+import { PMTiles } from 'pmtiles';
+import { LocalPmtilesSource } from './pmtiles-source.js';
 import Fastify from 'fastify';
 
 import { openGeoPackageReader } from './gpkg-read.js';
@@ -88,14 +90,10 @@ export async function createMapZeroServer(options) {
 
   app.get('/map-zero-ol.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../packages/ol/src/index.js', import.meta.url), 'utf8');
-    const cacheBustedSource = rewriteRasterModuleImports(moduleSource)
+    const cacheBustedSource = rewriteCoreModuleImports(moduleSource)
       .replace(
         "from './labels.js';",
         `from './labels.js?v=${encodeURIComponent(assetVersion)}';`
-      )
-      .replace(
-        "new URL('@map-zero/raster/imagery-worker.js', import.meta.url)",
-        "new URL('/imagery-worker.js', globalThis.location.href)"
       );
     reply
       .header('cache-control', 'no-store')
@@ -108,7 +106,7 @@ export async function createMapZeroServer(options) {
     reply
       .header('cache-control', 'no-store')
       .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
+      .send(rewriteCoreModuleImports(moduleSource));
   });
 
   app.get('/zoom.js', async (request, reply) => {
@@ -127,18 +125,6 @@ export async function createMapZeroServer(options) {
       .send(moduleSource);
   });
 
-  app.get('/vendor/pmtiles-worker.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../node_modules/pmtiles/dist/esm/index.js', import.meta.url), 'utf8');
-    const browserSource = moduleSource
-      .replaceAll('from"fflate"', 'from"/vendor/fflate.js"')
-      .replaceAll("from 'fflate'", "from '/vendor/fflate.js'")
-      .replaceAll('from "fflate"', 'from "/vendor/fflate.js"');
-    reply
-      .header('cache-control', 'public, max-age=31536000, immutable')
-      .type('text/javascript; charset=utf-8')
-      .send(browserSource);
-  });
-
   app.get('/vendor/fflate.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../node_modules/fflate/esm/browser.js', import.meta.url), 'utf8');
     reply
@@ -147,89 +133,26 @@ export async function createMapZeroServer(options) {
       .send(moduleSource);
   });
 
-  app.get('/map-zero-cesium.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/cesium/src/index.js', import.meta.url), 'utf8');
-    const browserSource = moduleSource.replace(
-      "import {\n  Cesium3DTileColorBlendMode,\n  Cesium3DTileStyle,\n  Cesium3DTileset,\n  ImageryLayer\n} from 'cesium';",
-      "const { Cesium3DTileColorBlendMode, Cesium3DTileStyle, Cesium3DTileset, ImageryLayer } = globalThis.Cesium;"
-    );
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(browserSource);
-  });
-
-  app.get('/imagery.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/cesium/src/imagery.js', import.meta.url), 'utf8');
-    const browserSource = rewriteRasterModuleImports(moduleSource)
-      .replace(
-        "import {\n  Event,\n  Rectangle,\n  WebMercatorTilingScheme\n} from 'cesium';",
-        "const { Event, Rectangle, WebMercatorTilingScheme } = globalThis.Cesium;"
-      )
-      .replace(
-        "const DEFAULT_WORKER_URL = new URL('@map-zero/raster/imagery-worker.js', import.meta.url);",
-        "const DEFAULT_WORKER_URL = new URL('/imagery-worker.js', globalThis.location.href);"
-      );
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(browserSource);
-  });
-
-  app.get('/imagery-worker.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/raster/src/imagery-worker.js', import.meta.url), 'utf8');
-    const browserSource = moduleSource
-      .replace("import Feature from 'ol/Feature.js';", "import Feature from 'https://esm.sh/ol@10.10.0/Feature.js';")
-      .replace("import MVT from 'ol/format/MVT.js';", "import MVT from 'https://esm.sh/ol@10.10.0/format/MVT.js';")
-      .replace("import { PMTiles } from 'pmtiles';", "import { PMTiles } from '/vendor/pmtiles-worker.js';")
-      .replaceAll("from './", "from '/map-zero-raster/");
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(browserSource);
-  });
-
-  app.get('/map-zero-raster/:name', async (request, reply) => {
-    const name = String(request.params.name ?? '');
-    if (!['canvas-renderer.js', 'canvas-style.js', 'labels.js', 'style.js'].includes(name)) {
-      reply.status(404).send({ error: 'not found' });
-      return;
-    }
-
-    const moduleSource = await fs.readFile(new URL(`../packages/raster/src/${name}`, import.meta.url), 'utf8');
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
-
-  app.get('/map-zero-raster/renderer/:name', async (request, reply) => {
-    const name = String(request.params.name ?? '');
-    if (!['canvas2d.js', 'factory.js'].includes(name)) {
-      reply.status(404).send({ error: 'not found' });
-      return;
-    }
-
-    const moduleSource = await fs.readFile(new URL(`../packages/raster/src/renderer/${name}`, import.meta.url), 'utf8');
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
-
-  app.get('/map-zero-raster/shared/:name', async (request, reply) => {
-    const name = String(request.params.name ?? '');
-    if (!['color.js', 'geo.js', 'layers.js', 'manifest.js', 'math.js', 'metrics.js'].includes(name)) {
-      reply.status(404).send({ error: 'not found' });
-      return;
-    }
-
-    const moduleSource = await fs.readFile(new URL(`../packages/raster/src/shared/${name}`, import.meta.url), 'utf8');
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
+  for (const [route, name] of [['/map-zero-cesium.js', 'index.js'], ['/vector.js', 'vector.js'], ['/cesium-labels.js', 'cesium-labels.js']]) {
+    app.get(route, async (request, reply) => {
+      const source = await fs.readFile(new URL(`../packages/cesium/src/${name}`, import.meta.url), 'utf8');
+      reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8')
+        .send(rewriteCoreModuleImports(source).replace(/import\s*\{([^}]+)\}\s*from 'cesium';/g,
+          'const {$1} = globalThis.Cesium;'));
+    });
+  }
+  for (const [route, allowed] of [
+    ['/map-zero-core/:name', ['style.js', 'labels.js']],
+    ['/map-zero-core/shared/:name', ['cache.js', 'layers.js']]
+  ]) {
+    app.get(route, async (request, reply) => {
+      const name = String(request.params.name ?? '');
+      if (!allowed.includes(name)) return reply.code(404).send({ error: 'not found' });
+      const directory = route.includes('/shared/') ? 'shared/' : '';
+      const source = await fs.readFile(new URL(`../packages/core/src/${directory}${name}`, import.meta.url), 'utf8');
+      return reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8').send(source);
+    });
+  }
 
   app.get('/manifest.json', async (request, reply) => {
     reply.header('cache-control', 'no-store').send(manifest);
@@ -242,8 +165,29 @@ export async function createMapZeroServer(options) {
     });
   }
 
-  const tiles3dPath = tiles3dBasePath(packageDir, manifest);
-  if (tiles3dPath) {
+  const archiveSource = pmtilesPath ? new LocalPmtilesSource(pmtilesPath.path) : null;
+  const archive = archiveSource ? new PMTiles(archiveSource) : null;
+  if (archiveSource) app.addHook('onClose', () => archiveSource.close());
+  app.get('/api/vector-tiles/:z/:x/:y.mvt', async (request, reply) => {
+    const { z, x, y } = request.params;
+    const coords = [z, x, y].map(Number);
+    if (!coords.every(Number.isInteger) || coords[0] < 0 || coords[0] > 22
+      || coords[1] < 0 || coords[2] < 0 || coords[1] >= 2 ** coords[0] || coords[2] >= 2 ** coords[0]) {
+      return reply.code(400).send({ error: 'invalid XYZ tile coordinates' });
+    }
+    if (!archive) return reply.redirect(`/api/tiles/${z}/${x}/${y}.mvt`);
+    const tile = await archive.getZxy(...coords);
+    if (!tile) return reply.code(204).send();
+    return reply.type('application/vnd.mapbox-vector-tile').send(Buffer.from(tile.data));
+  });
+
+  const tilesetUrls = Object.values(manifest.tiles3d?.tilesets ?? { default: manifest.tiles3d?.url }).filter((url) => typeof url === 'string');
+  const tilesetPaths = new Map();
+  for (const url of tilesetUrls) {
+    const path = tiles3dBasePath(packageDir, { ...manifest, tiles3d: { ...manifest.tiles3d, url } });
+    if (path) tilesetPaths.set(path.urlPrefix, path);
+  }
+  for (const tiles3dPath of tilesetPaths.values()) {
     app.get(`/${tiles3dPath.urlPrefix}/*`, async (request, reply) => {
       const params = /** @type {Record<string, string>} */ (request.params);
       const relativePath = params['*'] ?? '';
@@ -431,13 +375,13 @@ function sendTileReply(reply, buffer, cacheStatus) {
 
 /**
  * Browser viewer assets are served directly from source files. Keep shared
- * raster module imports resolvable without requiring a workspace symlink.
+ * shared module imports resolvable without requiring a workspace symlink.
  *
  * @param {string} source
  * @returns {string}
  */
-function rewriteRasterModuleImports(source) {
-  return source.replaceAll('../../raster/src/', '/map-zero-raster/');
+function rewriteCoreModuleImports(source) {
+  return source.replaceAll('../../core/src/', '/map-zero-core/');
 }
 
 /**
