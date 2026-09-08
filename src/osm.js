@@ -7,6 +7,7 @@ import Database from 'better-sqlite3';
 import parseOsmPbf from 'osm-pbf-parser';
 
 import {
+  geoPackageLayersForOsm,
   isPoi,
   layersForRelation,
   layersForWay,
@@ -135,7 +136,7 @@ export async function buildOsmGeoPackage(source, bbox, layers, gpkgPath, options
   const batchSize = options.batchSize ?? 5000;
   const tempPath = options.tempPath ?? join(tmpdir(), `map-zero-build-${process.pid}-${randomUUID()}.sqlite`);
   const temp = createBuildTempDatabase(tempPath);
-  const writer = openGeoPackageWriter(gpkgPath, layers, bbox);
+  const writer = openGeoPackageWriter(gpkgPath, geoPackageLayersForOsm(layers), bbox);
   let success = false;
 
   try {

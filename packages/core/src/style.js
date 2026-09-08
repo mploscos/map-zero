@@ -1,4 +1,5 @@
-import { layerAlias, manifestLayer } from './shared/layers.js';
+import { layerAlias } from './shared/layers.js';
+import { resolveManifestLayers } from './manifest.js';
 
 export function getLayerRule(styleDocument, layer) {
   const layers = styleDocument.layers && typeof styleDocument.layers === 'object' ? styleDocument.layers : {};
@@ -45,7 +46,7 @@ export function mergeFeatureRule(rule, feature) {
 }
 
 export function orderManifestLayers(manifest, styleDocument) {
-  const layers = Array.isArray(manifest.layers) ? manifest.layers.map(manifestLayer) : [];
+  const layers = resolveManifestLayers(manifest).map((layer) => ({ ...layer, style: layer.id }));
   const drawOrder = Array.isArray(styleDocument.drawOrder) ? styleDocument.drawOrder : layers.map((layer) => layer.id);
   return [...layers].sort((a, b) => {
     const ai = drawOrder.indexOf(a.id);

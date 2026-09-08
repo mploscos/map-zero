@@ -1,12 +1,12 @@
 # HTTP API
 
-`map-zero serve` starts a readonly local server for one `.mapzero` package.
+`map-zero serve` starts a readonly local server for one `.mapzero` package. Delivery-only packages can be previewed without GeoPackage; database inspection and dynamic `/api/` queries then return HTTP 409.
 
 ```bash
 node src/cli.js serve ./madrid.mapzero --port 8080 --open
 ```
 
-The HTTP API is only required for dynamic GeoPackage-backed serving and local inspection. If you export `tiles.pmtiles` or `3dtiles/`, those artifacts can be served as static files without the map-zero Node server. Native Cesium MVT context additionally requires an XYZ endpoint; the built-in server provides `/api/vector-tiles/{z}/{x}/{y}.mvt`.
+The HTTP API is only required for dynamic GeoPackage-backed serving and local inspection. If you export `tiles.pmtiles` or `3dtiles/`, those artifacts can be served as static files without the map-zero Node server. Cesium loads prebuilt static 3D Tiles and requires no vector-tile endpoint.
 
 ## Viewer Routes
 
@@ -87,8 +87,7 @@ GET /api/jobs/:id
 `pmtiles`, `tiles3d`, `zip`, and `includeGpkg`. Jobs are kept in memory for the
 current server process.
 
-## Native Cesium MVT endpoint
+## Static Cesium resources
 
-`GET /api/vector-tiles/:z/:x/:y.mvt` returns decoded MVT bytes from the package's PMTiles archive. Empty tiles return HTTP 204; invalid XYZ coordinates return HTTP 400. No geometry is regenerated when PMTiles exists. Packages without PMTiles redirect to the existing dynamic MVT endpoint.
-
-This readonly adapter supplies the XYZ URLs required by Cesium 1.145 `MVTDataProvider`, while OpenLayers continues to read the same archive with range requests.
+Cesium uses the manifest's static `tiles3d.tilesets` URLs. The dynamic
+`/api/tiles/:z/:x/:y.mvt` routes remain available for OpenLayers dynamic mode.

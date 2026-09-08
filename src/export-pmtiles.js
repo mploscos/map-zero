@@ -4,11 +4,14 @@ import { availableParallelism } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { Compression } from 'pmtiles';
 import { Worker } from 'node:worker_threads';
+import { finished } from 'node:stream/promises';
 
 import { openGeoPackageReader } from './gpkg-read.js';
-import { detailForZoom, encodeMvtTileSetWithStats } from './mvt.js';
+import { resolveManifestLayers, isLayerInZoomRange } from './manifest.js';
+import { detailForZoom, encodeMvtTileSetWithStats, tileToBbox } from './mvt.js';
 import { tileIdForZxy, writePmtilesArchive } from './pmtiles.js';
 import { createHiddenFilters } from './style-filters.js';
+import { createSparseTilePlan } from './pmtiles-plan.js';
 
 const DEFAULT_MIN_ZOOM = 8;
 const DEFAULT_MAX_ZOOM = 16;
@@ -38,6 +41,10 @@ const WEB_MERCATOR_MAX_LAT = 85.05112878;
  *   workers?: number,
  *   writtenTiles?: number,
  *   skippedEmptyTiles?: number,
+ *   prunedEmptyTiles?: number,
+ *   visitedTiles?: number,
+ *   sparsePlanCandidates?: number,
+ *   planExcludedTiles?: number,
  *   outputBytes?: number,
  *   outputPath?: string
  * }) => void} ExportProgress
@@ -46,7 +53,8 @@ const WEB_MERCATOR_MAX_LAT = 85.05112878;
  *   entries: import('./pmtiles.js').PmtilesEntry[],
  *   tileDataOffset: number,
  *   writtenTiles: number,
- *   skippedEmptyTiles: number
+ *   skippedEmptyTiles: number,
+ *   prunedEmptyTiles: number
  * }} ZoomExportResult
  */
 
@@ -60,9 +68,11 @@ const WEB_MERCATOR_MAX_LAT = 85.05112878;
  *   maxZoom?: number,
  *   workers?: number,
  *   force?: boolean,
+ *   pruneEmptyTiles?: boolean,
+ *   tilePlanning?: 'rtree' | 'bbox',
  *   onProgress?: ExportProgress
  * }} options
- * @returns {Promise<{ outPath: string, minZoom: number, maxZoom: number, estimatedTiles: number, writtenTiles: number, skippedEmptyTiles: number, outputBytes: number }>}
+ * @returns {Promise<{ outPath: string, minZoom: number, maxZoom: number, estimatedTiles: number, sparsePlanCandidates: number, planExcludedTiles: number, writtenTiles: number, skippedEmptyTiles: number, prunedEmptyTiles: number, visitedTiles: number, outputBytes: number, planning: object[] }>}
  */
 export async function exportPmtiles(options) {
   const packageDir = resolve(options.packageDir);
@@ -74,6 +84,8 @@ export async function exportPmtiles(options) {
   const maxZoom = options.maxZoom ?? DEFAULT_MAX_ZOOM;
   validateZoomRange(minZoom, maxZoom);
   const workers = normalizeWorkerCount(options.workers);
+  const tilePlanning = options.tilePlanning ?? 'rtree';
+  if (!['rtree', 'bbox'].includes(tilePlanning)) throw new Error('tilePlanning must be rtree or bbox');
 
   const outPath = resolve(options.out ?? join(packageDir, 'tiles.pmtiles'));
   const manifestTileUrl = relativePackagePath(packageDir, outPath);
@@ -96,12 +108,6 @@ export async function exportPmtiles(options) {
     veryHighEstimate: estimate.veryHighEstimate
   });
 
-  if (estimatedTiles > LARGE_EXPORT_TILE_LIMIT && !options.force) {
-    throw new Error(
-      `PMTiles export would generate up to ${formatInteger(estimatedTiles)} tiles; use --force to proceed`
-    );
-  }
-
   const reader = openGeoPackageReader({
     gpkgPath,
     manifest,
@@ -111,64 +117,52 @@ export async function exportPmtiles(options) {
   const tmpTileDataPath = `${outPath}.tiles-${process.pid}-${Date.now()}`;
   await fs.mkdir(dirname(outPath), { recursive: true });
   const tileDataStream = createWriteStream(tmpTileDataPath, { flags: 'w' });
+  // Observe errors from creation through close, including writes that were
+  // accepted into the buffer but have not reached disk. Resolve to an error
+  // value so an early I/O failure cannot become an unhandled rejection.
+  const streamCompletion = finished(tileDataStream).then(() => null, (error) => error);
   /** @type {import('./pmtiles.js').PmtilesEntry[]} */
   const entries = [];
   let tileDataOffset = 0;
   let writtenTiles = 0;
   let skippedEmptyTiles = 0;
+  let prunedEmptyTiles = 0;
+  let sparsePlanCandidates = 0;
+  const planning = [];
 
   try {
-    if (workers <= 1) {
-      for (const [zoom, range] of rangesByZoom.entries()) {
-        const result = await exportZoomSequential({
-          reader,
-          manifest,
-          defaultStyle,
-          zoom,
-          range,
-          tileDataStream,
-          tileDataOffset,
-          onProgress: options.onProgress,
-          workers
-        });
-        for (const entry of result.entries) entries.push(entry);
-        tileDataOffset = result.tileDataOffset;
-        writtenTiles += result.writtenTiles;
-        skippedEmptyTiles += result.skippedEmptyTiles;
+    for (const [zoom, range] of rangesByZoom.entries()) {
+      const started = performance.now();
+      const plan = createSparseTilePlan(reader, zoom, range, tileRangeForBbox, { mode: tilePlanning });
+      const { ranges: _ranges, ...summary } = plan;
+      planning.push({ zoom, ...summary, durationMs: performance.now() - started });
+      sparsePlanCandidates += plan.tileCount;
+      if (sparsePlanCandidates > LARGE_EXPORT_TILE_LIMIT && !options.force) {
+        throw new Error(`PMTiles plan would generate over ${formatInteger(LARGE_EXPORT_TILE_LIMIT)} tiles; use --force to proceed`);
       }
-    } else {
-      reader.close();
-      for (const [zoom, range] of rangesByZoom.entries()) {
-        const result = await exportZoomParallel({
-          packageDir,
-          gpkgPath,
-          manifest,
-          defaultStyle,
-          zoom,
-          range,
-          tileDataStream,
-          tileDataOffset,
-          workers,
-          onProgress: options.onProgress
-        });
-        for (const entry of result.entries) entries.push(entry);
-        tileDataOffset = result.tileDataOffset;
-        writtenTiles += result.writtenTiles;
-        skippedEmptyTiles += result.skippedEmptyTiles;
-      }
+      const exportZoom = workers <= 1 ? exportZoomSequential : exportZoomParallel;
+      const result = await exportZoom({
+        reader, packageDir, gpkgPath, manifest, defaultStyle, zoom, range, plan,
+        tileDataStream, tileDataOffset, workers, onProgress: options.onProgress,
+        pruneEmptyTiles: options.pruneEmptyTiles ?? true
+      });
+      for (const entry of result.entries) entries.push(entry);
+      tileDataOffset = result.tileDataOffset;
+      writtenTiles += result.writtenTiles;
+      skippedEmptyTiles += result.skippedEmptyTiles;
+      prunedEmptyTiles += result.prunedEmptyTiles;
     }
 
-    await closeWriteStream(tileDataStream);
+    tileDataStream.end();
+    const streamError = await streamCompletion;
+    if (streamError) throw streamError;
   } catch (error) {
     tileDataStream.destroy();
+    await streamCompletion;
     await fs.rm(tmpTileDataPath, { force: true });
     throw error;
   } finally {
-    try {
-      reader.close();
-    } catch {
-      // Parallel exports close the setup reader before workers open their own readonly handles.
-    }
+    reader.close();
   }
 
   if (entries.length === 0) {
@@ -199,6 +193,10 @@ export async function exportPmtiles(options) {
     phase: 'done',
     writtenTiles,
     skippedEmptyTiles,
+    prunedEmptyTiles,
+    sparsePlanCandidates,
+    planExcludedTiles: estimatedTiles - sparsePlanCandidates,
+    visitedTiles: sparsePlanCandidates - prunedEmptyTiles,
     outputBytes: archive.bytes,
     outputPath: outPath
   });
@@ -210,6 +208,11 @@ export async function exportPmtiles(options) {
     estimatedTiles,
     writtenTiles,
     skippedEmptyTiles,
+    prunedEmptyTiles,
+    sparsePlanCandidates,
+    planExcludedTiles: estimatedTiles - sparsePlanCandidates,
+    visitedTiles: sparsePlanCandidates - prunedEmptyTiles,
+    planning,
     outputBytes: archive.bytes
   };
 }
@@ -217,10 +220,12 @@ export async function exportPmtiles(options) {
 /**
  * @param {{
  *   reader: ReturnType<typeof openGeoPackageReader>,
+ *   pruneEmptyTiles: boolean,
  *   manifest: Record<string, unknown>,
  *   defaultStyle: Record<string, unknown> | null,
  *   zoom: number,
  *   range: TileRange,
+ *   plan: ReturnType<typeof createSparseTilePlan>,
  *   tileDataStream: import('node:fs').WriteStream,
  *   tileDataOffset: number,
  *   workers: number,
@@ -236,10 +241,16 @@ async function exportZoomSequential(options) {
   const entries = [];
   let tileDataOffset = options.tileDataOffset;
   let writtenTiles = 0;
-  let skippedEmptyTiles = 0;
+  let skippedEmptyTiles = options.range.tileCount - options.plan.tileCount;
+  let prunedEmptyTiles = 0;
   let tileBytes = 0;
 
-  for (const task of tileTasksForRange(options.zoom, options.range)) {
+  const tasks = tileTasksWithCoverage(options, (count) => {
+    prunedEmptyTiles += count;
+    skippedEmptyTiles += count;
+    progress.update({ writtenTiles, skippedEmptyTiles, tileBytes });
+  });
+  for (const task of tasks) {
     const result = encodeMvtTileSetWithStats(options.reader, options.zoom, task.x, task.y, layerIds, {
       detail,
       style: options.defaultStyle
@@ -270,18 +281,22 @@ async function exportZoomSequential(options) {
     entries,
     tileDataOffset,
     writtenTiles,
-    skippedEmptyTiles
+    skippedEmptyTiles,
+    prunedEmptyTiles
   };
 }
 
 /**
  * @param {{
  *   packageDir: string,
+ *   reader: ReturnType<typeof openGeoPackageReader>,
+ *   pruneEmptyTiles: boolean,
  *   gpkgPath: string,
  *   manifest: Record<string, unknown>,
  *   defaultStyle: Record<string, unknown> | null,
  *   zoom: number,
  *   range: TileRange,
+ *   plan: ReturnType<typeof createSparseTilePlan>,
  *   tileDataStream: import('node:fs').WriteStream,
  *   tileDataOffset: number,
  *   workers: number,
@@ -293,34 +308,44 @@ function exportZoomParallel(options) {
   const layerIds = activeLayerIdsForZoom(options.manifest, options.defaultStyle, options.zoom);
   const detail = detailForZoom(options.zoom);
   const progress = createZoomProgress(options.zoom, options.range.tileCount, options.workers, options.onProgress);
-  const iterator = tileTasksForRange(options.zoom, options.range);
   /** @type {import('./pmtiles.js').PmtilesEntry[]} */
   const entries = [];
   const workerCount = Math.min(options.workers, Math.max(1, options.range.tileCount));
   const workers = [];
   let tileDataOffset = options.tileDataOffset;
   let writtenTiles = 0;
-  let skippedEmptyTiles = 0;
+  let skippedEmptyTiles = options.range.tileCount - options.plan.tileCount;
+  let prunedEmptyTiles = 0;
   let tileBytes = 0;
+  const iterator = tileTasksWithCoverage(options, (count) => {
+    prunedEmptyTiles += count;
+    skippedEmptyTiles += count;
+    progress.update({ writtenTiles, skippedEmptyTiles, tileBytes });
+  });
   let activeJobs = 0;
   let nextJobId = 0;
   let closedWorkers = 0;
   let closing = false;
+  let failed = false;
   let writeChain = Promise.resolve();
+
+  if (options.plan.tileCount === 0) {
+    progress.finish({ writtenTiles, skippedEmptyTiles, tileBytes });
+    return Promise.resolve({ entries, tileDataOffset, writtenTiles, skippedEmptyTiles, prunedEmptyTiles });
+  }
 
   return new Promise((resolvePromise, rejectPromise) => {
     /**
      * @param {Error} error
      */
     const fail = (error) => {
-      if (closing) {
-        return;
-      }
+      if (failed) return;
+      failed = true;
       closing = true;
-      for (const worker of workers) {
-        worker.terminate();
-      }
-      rejectPromise(error);
+      // Stop producers and settle queued writes before the caller destroys
+      // the stream or removes the temporary file. Keep the original failure.
+      const stopped = workers.map((worker) => worker.terminate());
+      Promise.allSettled([...stopped, writeChain]).then(() => rejectPromise(error));
     };
 
     const maybeClose = () => {
@@ -373,16 +398,23 @@ function exportZoomParallel(options) {
       workers.push(worker);
 
       worker.on('message', (message) => {
+        if (failed) return;
         if (message?.type === 'closed') {
           closedWorkers += 1;
           worker.terminate();
           if (closedWorkers === workers.length) {
-            progress.finish({ writtenTiles, skippedEmptyTiles, tileBytes });
+            try {
+              progress.finish({ writtenTiles, skippedEmptyTiles, tileBytes });
+            } catch (error) {
+              fail(error instanceof Error ? error : new Error(String(error)));
+              return;
+            }
             resolvePromise({
               entries,
               tileDataOffset,
               writtenTiles,
-              skippedEmptyTiles
+              skippedEmptyTiles,
+              prunedEmptyTiles
             });
           }
           return;
@@ -404,6 +436,7 @@ function exportZoomParallel(options) {
             } else {
               const buffer = Buffer.from(message.buffer);
               await (writeChain = writeChain.then(async () => {
+                if (failed) return;
                 await writeStreamChunk(options.tileDataStream, buffer);
                 entries.push({
                   tileId: message.tileId,
@@ -433,8 +466,10 @@ function exportZoomParallel(options) {
       });
     }
 
-    for (const worker of workers) {
-      assign(worker);
+    try {
+      for (const worker of workers) assign(worker);
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error(String(error)));
     }
   });
 }
@@ -471,7 +506,7 @@ function createZoomProgress(zoom, totalTiles, workers, onProgress) {
 
   return {
     update(counts) {
-      completedTiles += 1;
+      completedTiles = counts.writtenTiles + counts.skippedEmptyTiles;
       const now = Date.now();
       if (now - lastReportAt < 1000 && completedTiles < totalTiles) {
         return;
@@ -506,6 +541,7 @@ async function readJsonFile(filePath) {
  * @param {Record<string, unknown>} manifest
  */
 function validateManifest(manifest) {
+  resolveManifestLayers(manifest);
   if (manifest.format !== 'mapzero') {
     throw new Error('manifest format must be mapzero');
   }
@@ -627,6 +663,56 @@ function* tileTasksForRange(z, range) {
       };
     }
   }
+}
+
+/**
+ * Recursively discard empty rectangles using RTree occupancy. Query all source
+ * tables eligible at this zoom, including hidden/unrequested ones: this is a
+ * conservative superset of the built-in policies' reads (aliases and labels
+ * included). Missing indexes fall back to the old traversal/error behavior.
+ * Blocks include a full neighboring tile beyond each edge, enclosing the MVT
+ * query buffer. Small occupied blocks use the existing encoder unchanged.
+ *
+ * @param {{reader: ReturnType<typeof openGeoPackageReader>, zoom: number,
+ *   range: TileRange, plan: ReturnType<typeof createSparseTilePlan>, pruneEmptyTiles: boolean}} options
+ * @param {(count: number) => void} onPruned
+ * @returns {Generator<{z: number, x: number, y: number, tileId: number}>}
+ */
+function* tileTasksWithCoverage(options, onPruned) {
+  const { reader, zoom, range } = options;
+  const layers = reader.getLayers();
+  if (!options.pruneEmptyTiles || layers.some((layer) => !layer.exists || !layer.rtree)) {
+    for (const block of options.plan.ranges) yield* tileTasksForRange(zoom, block);
+    return;
+  }
+  const sources = layers.filter((layer) => isLayerInZoomRange(layer, zoom));
+  const maxTile = 2 ** zoom - 1;
+
+  /** @param {TileRange} block */
+  function* visit(block) {
+    const northWest = tileToBbox(zoom, Math.max(0, block.minX - 1), Math.max(0, block.minY - 1));
+    const southEast = tileToBbox(zoom, Math.min(maxTile, block.maxX + 1), Math.min(maxTile, block.maxY + 1));
+    const bounds = /** @type {[number, number, number, number]} */ ([northWest[0], southEast[1], southEast[2], northWest[3]]);
+    if (!sources.some((layer) => reader.hasFeaturesInBbox(String(layer.id), bounds))) {
+      onPruned(block.tileCount);
+      return;
+    }
+    if (block.tileCount <= 16) {
+      yield* tileTasksForRange(zoom, block);
+      return;
+    }
+    const splitX = block.maxX - block.minX >= block.maxY - block.minY;
+    const min = splitX ? 'minX' : 'minY';
+    const max = splitX ? 'maxX' : 'maxY';
+    const middle = Math.floor((block[min] + block[max]) / 2);
+    const left = { ...block, [max]: middle };
+    const right = { ...block, [min]: middle + 1 };
+    for (const child of [left, right]) {
+      child.tileCount = (child.maxX - child.minX + 1) * (child.maxY - child.minY + 1);
+      yield* visit(child);
+    }
+  }
+  for (const block of options.plan.ranges) yield* visit(block);
 }
 
 /**
@@ -813,10 +899,11 @@ function formatInteger(value) {
  * @returns {string[]}
  */
 function activeLayerIdsForZoom(manifest, style, zoom) {
-  const layers = /** @type {string[]} */ (manifest.layers ?? []);
+  const layers = resolveManifestLayers(manifest);
   const visualLayers = layers
     .filter((layer) => {
-      const rule = layerStyleRule(style, layer);
+      if (!isLayerInZoomRange(layer, zoom)) return false;
+      const rule = layerStyleRule(style, layer.id);
       if (rule.visible === false) {
         return false;
       }
@@ -831,7 +918,7 @@ function activeLayerIdsForZoom(manifest, style, zoom) {
 
       return true;
     })
-    .map((layer) => String(layer));
+    .map((layer) => layer.id);
 
   return visualLayers;
 }
@@ -864,6 +951,7 @@ function layerStyleRule(style, layerId) {
  * @returns {Promise<void>}
  */
 function writeStreamChunk(stream, chunk) {
+  if (stream.errored) return Promise.reject(stream.errored);
   return new Promise((resolvePromise, rejectPromise) => {
     if (stream.write(chunk)) {
       resolvePromise();
@@ -889,17 +977,6 @@ function writeStreamChunk(stream, chunk) {
 }
 
 /**
- * @param {import('node:fs').WriteStream} stream
- * @returns {Promise<void>}
- */
-function closeWriteStream(stream) {
-  return new Promise((resolvePromise, rejectPromise) => {
-    stream.end(resolvePromise);
-    stream.once('error', rejectPromise);
-  });
-}
-
-/**
  * @param {Record<string, unknown>} manifest
  * @param {Record<string, unknown> | null} style
  * @param {number} minZoom
@@ -908,7 +985,8 @@ function closeWriteStream(stream) {
  * @returns {Record<string, unknown>}
  */
 function createPmtilesMetadata(manifest, style, minZoom, maxZoom, bbox) {
-  const layers = /** @type {string[]} */ (manifest.layers ?? []);
+  const layers = resolveManifestLayers(manifest).filter((layer) =>
+    (layer.minZoom ?? 0) <= maxZoom && (layer.maxZoom ?? Infinity) >= minZoom);
   return {
     tilejson: '3.0.0',
     name: manifest.name ?? 'map-zero',
@@ -920,9 +998,13 @@ function createPmtilesMetadata(manifest, style, minZoom, maxZoom, bbox) {
     center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2, Math.min(Math.max(12, minZoom), maxZoom)],
     minzoom: minZoom,
     maxzoom: maxZoom,
-    vector_layers: layers.map((layerId) => ({
-      id: layerId,
-      fields: fieldsForLayer(style, layerId)
+    'mapzero:layers': layers,
+    vector_layers: layers.map((layer) => ({
+      id: layer.id,
+      fields: { ...fieldsForLayer(style, layer.id),
+        ...Object.fromEntries(Object.values(layer.featureZoom ?? {}).map((name) => [name, 'Number'])) },
+      ...(layer.minZoom === undefined ? {} : { minzoom: Math.max(minZoom, layer.minZoom) }),
+      ...(layer.maxZoom === undefined ? {} : { maxzoom: Math.min(maxZoom, layer.maxZoom) })
     }))
   };
 }

@@ -180,7 +180,7 @@ function polygonsFromGeometry(geometry) {
  * @param {number} defaultHeight
  * @returns {number}
  */
-function buildingHeight(row, defaultHeight) {
+export function buildingHeight(row, defaultHeight) {
   const explicitHeight = parseMeters(row.height);
   if (explicitHeight !== null) {
     return explicitHeight;

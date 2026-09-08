@@ -7,7 +7,7 @@ Static previews, for readers who prefer no animation:
 - [Draw a bbox and configure the build](bbox-builder.png)
 - [Generation](generate.png)
 - [OpenLayers 2D](openlayers-2d.png)
-- [Cesium native MVT, labels and 3D Tiles](cesium-3d.png)
+- [Cesium static vector 3D Tiles, buildings and labels](cesium-3d.png)
 
 Data: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), from the local Geofabrik Madrid extract. Bbox: `-3.710,40.413,-3.696,40.422`. Source data and generated map packages are not committed to the repository.
 
@@ -38,4 +38,4 @@ npm run test:browser -- generated/readme-demo.mapzero
 
 Camera coordinates in `scripts/record-readme.mjs` target this Madrid bbox. Adapt those coordinates before recording another area. The script never invents generation progress: it reads the supplied log. Inspect successful completion of all three CLI commands before recording.
 
-GIFs are scaled to 720 pixels wide at 4 frames per second with a 128-color palette and no dithering to reduce README download size. Static PNG previews preserve the original 1120 × 680 screenshots. The original map-zero theme and renderer behavior remain visible; native Cesium styling limitations are described in [the review](../performance.md).
+GIFs are scaled to 720 pixels wide at 4 frames per second with a 128-color palette and no dithering to reduce README download size. Static PNG previews preserve the original 1120 × 680 screenshots. The original map-zero theme and renderer behavior remain visible; Cesium rendering limits are described in [the guide](../cesium.md).

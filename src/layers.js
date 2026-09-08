@@ -98,6 +98,28 @@ export const LAYER_DEFINITIONS = {
 };
 
 /**
+ * Describe the OSM storage schema for the generic GeoPackage writer.
+ * Preserve column order and TEXT affinity used by existing map-zero packages.
+ * Layer ids must already be canonical, as in buildPackage.
+ *
+ * @param {string[]} layers
+ * @returns {import('./gpkg.js').LayerDescriptor[]}
+ */
+export function geoPackageLayersForOsm(layers) {
+  return layers.map((id) => {
+    if (!Object.hasOwn(LAYER_DEFINITIONS, id)) {
+      throw new Error(`unknown OSM layer: ${id}`);
+    }
+    const definition = LAYER_DEFINITIONS[id];
+    return {
+      id,
+      geometryType: definition.gpkgGeometryType,
+      columns: Object.fromEntries(definition.columns.map((column) => [column, 'TEXT']))
+    };
+  });
+}
+
+/**
  * Normalize public layer aliases to the canonical map-zero layer id.
  *
  * @param {string} layerId

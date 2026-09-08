@@ -1,12 +1,14 @@
-import { createMapZeroVectorContext } from './vector.js';
+import { createCesiumLabels } from './cesium-labels.js';
+import { createStaticTileStyle, createStaticTileStyleFactory } from './static-style.js';
 import {
+  BoundingSphere, Cartesian3,
   Cesium3DTileColorBlendMode,
   Cesium3DTileStyle,
-  Cesium3DTileset
+  Cesium3DTileset, HeightReference
 } from 'cesium';
 
 
-export { createNativeVectorStyle, vectorZoomRange } from './vector.js';
+export { createStaticTileStyle } from './static-style.js';
 
 let autoInstanceCounter = 0;
 
@@ -18,8 +20,8 @@ let autoInstanceCounter = 0;
  *   name?: string,
  *   bbox?: [number, number, number, number],
  *   styles?: Record<string, string>,
- *   tiles3d?: { format?: string, url?: string, layers?: string[] },
- *   layers?: string[]
+ *   tiles3d?: { format?: string, url?: string, layers?: string[], tilesets?: Record<string,string>, representations?: Record<string,{minZoom?:number,maxZoom?:number}> },
+ *   layers?: Array<string | import('../../core/src/manifest.js').ManifestLayerInput>
  * }} MapZeroManifest
  */
 
@@ -87,6 +89,8 @@ export async function loadMapZeroStyle(input, options = {}) {
  *   tilesetOpacity?: number,
  *   buildingsOpacity?: number,
  *   buildings3d?: boolean,
+ *   clampToTerrain?: boolean,
+ *   scene?: import('cesium').Scene,
  *   tilesetMaximumScreenSpaceError?: number,
  *   tilesetCacheBytes?: number,
  *   tilesetMaximumCacheOverflowBytes?: number
@@ -119,18 +123,30 @@ export async function createMapZeroCesiumTilesets(options) {
 
   /** @type {Record<string, Cesium3DTileset>} */
   const tilesets = {};
-  for (const entry of tilesetEntries) {
-    const url = resolveRelativeUrl(entry.url, options.manifestUrl);
-    const tileset = await Cesium3DTileset.fromUrl(url);
-    tagCesiumTileset(tileset, instanceId, entry.layerId);
-    configureCesiumTilesetStreaming(tileset, entry.layerId, options);
-    configureCesiumTilesetColor(tileset, entry.layerId);
-    tileset.style = createMapZeroCesiumStyle(styleJson, {
-      layerId: entry.layerId,
-      visibleLayers: new Set([entry.layerId]),
-      opacity: tilesetOpacityForLayer(entry.layerId, options)
-    });
-    tilesets[entry.layerId] = tileset;
+  const byUrl = new Map();
+  try {
+    for (const entry of tilesetEntries) {
+      const url = resolveRelativeUrl(entry.url, options.manifestUrl);
+      if(byUrl.has(url)){tilesets[entry.layerId]=byUrl.get(url);continue;}
+      const tileset = await Cesium3DTileset.fromUrl(url, {
+        heightReference:options.clampToTerrain ? HeightReference.CLAMP_TO_TERRAIN : HeightReference.NONE,
+        scene:options.scene
+      });
+      byUrl.set(url,tileset);
+      tagCesiumTileset(tileset, instanceId, entry.layerId);
+      configureCesiumTilesetStreaming(tileset, entry.layerId, options);
+      configureCesiumTilesetColor(tileset, entry.layerId);
+      tileset.style = createStaticTileStyle(styleJson ?? {}, {
+        layerId: entry.layerId,
+        manifest,
+        zoom: 16,
+        opacity: tilesetOpacityForLayer(entry.layerId, options)
+      });
+      tilesets[entry.layerId] = tileset;
+    }
+  } catch (error) {
+    for (const tileset of byUrl.values()) tileset.destroy();
+    throw error;
   }
 
   return {
@@ -155,14 +171,10 @@ export async function createMapZeroCesiumTilesets(options) {
  *   opacity?: number,
  *   tilesetOpacity?: number,
  *   buildingsOpacity?: number,
- *   contextOverlay?: boolean,
- *   vectorTilesUrl?: string,
- *   vectorMaxZoom?: number,
  *   labels?: boolean,
  *   maxLabels?: number,
- *   vectorHeightReference?: import('cesium').HeightReference,
- *   contextOpacity?: number,
  *   buildings3d?: boolean,
+ *   clampToTerrain?: boolean,
  *   tilesetMaximumScreenSpaceError?: number,
  *   tilesetCacheBytes?: number,
  *   tilesetMaximumCacheOverflowBytes?: number,
@@ -176,7 +188,6 @@ export async function createMapZeroCesiumTilesets(options) {
  *   manifest: MapZeroManifest,
  *   style: Record<string, unknown> | null,
  *   tilesets: Record<string, Cesium3DTileset>,
- *   vectorProvider?: import('cesium').MVTDataProvider,
  *   labelCollection?: import('cesium').LabelCollection,
  *   setLabelsVisible: (visible: boolean) => void,
  *   setVisible: (layerId: string, visible: boolean) => void,
@@ -192,65 +203,59 @@ export async function addMapZeroToCesium(viewer, options) {
     options.configureScene(viewer);
   }
 
-  const result = await createMapZeroCesiumTilesets(options);
+  const result = await createMapZeroCesiumTilesets({...options,scene:viewer.scene});
   const uniqueTilesets = [...new Set(Object.values(result.tilesets))];
-  const visibleLayers = new Set(Object.keys(result.tilesets));
-  let vectorContext;
-  try {
-    if (options.contextOverlay !== false) {
-      vectorContext = await createMapZeroVectorContext(viewer, {
-        ...options, manifest: result.manifest, styleDocument: result.style,
-        excludedLayers: Object.keys(result.tilesets)
+  if (!uniqueTilesets.length) throw new Error('No static 3D Tiles in manifest; export the GeoPackage with map-zero 3dtiles first');
+  const visibility = new Map(), opacities = new Map();
+  const bbox = result.manifest.bbox;
+  const latitude = (bbox[1]+bbox[3])/2;
+  const center = new BoundingSphere(Cartesian3.fromDegrees((bbox[0]+bbox[2])/2,latitude),1);
+  const getZoom = () => {
+    const resolution = viewer.camera.getPixelSize(center,viewer.scene.canvas.clientWidth,viewer.scene.canvas.clientHeight);
+    return Math.max(0,Math.min(24,Math.log2(156543.033928*Math.cos(latitude*Math.PI/180)/Math.max(0.001,resolution))));
+  };
+  const createStyle = createStaticTileStyleFactory(result.style ?? {}, { manifest: result.manifest });
+  let zoom = -1, destroyed = false;
+  const refresh = () => {
+    zoom = Math.round(getZoom()*4)/4;
+    for (const tileset of uniqueTilesets) {
+      const ids=Object.keys(result.tilesets).filter(id=>result.tilesets[id]===tileset);
+      tileset.show=ids.some(id=>{
+        const range=result.manifest.tiles3d?.representations?.[id]??{};
+        return zoom>=(range.minZoom??0)&&zoom<=(range.maxZoom??24)&&visibility.get(id)!==false&&(opacities.get(id)??tilesetOpacityForLayer(id,options))>0;
       });
-      viewer.scene.primitives.add(vectorContext.provider);
+      tileset.style = createStyle({
+        zoom,visibility,opacities,opacity:tilesetOpacityForLayer(ids[0],options)
+      });
     }
+    viewer.scene.requestRender?.();
+  };
+  for (const tileset of uniqueTilesets) viewer.scene.primitives.add(tileset);
+  let labels;
+  try {
+    labels = createCesiumLabels(viewer,uniqueTilesets,{
+      ...options,manifest:result.manifest,styleDocument:result.style ?? {},visibility,opacities,getZoom,
+      opacity:options.opacity ?? 1
+    });
   } catch (error) {
-    for (const tileset of uniqueTilesets) tileset.destroy();
+    for (const tileset of uniqueTilesets) viewer.scene.primitives.remove(tileset);
     throw error;
   }
-  for (const tileset of uniqueTilesets) {
-    viewer.scene.primitives.add(tileset);
-  }
-  if (options.zoomTo !== false && typeof viewer.zoomTo === 'function') {
-    const firstTileset = uniqueTilesets[0];
-    if (firstTileset) {
-      await viewer.zoomTo(firstTileset);
-    }
-  }
-
+  refresh();
+  const removeCamera = viewer.scene.preRender.addEventListener(() => {
+    if (Math.round(getZoom()*4)/4 !== zoom) refresh();
+  });
+  if (options.zoomTo !== false && typeof viewer.zoomTo === 'function') await viewer.zoomTo(uniqueTilesets[0]);
   return {
-    manifest: result.manifest,
-    id: result.id,
-    style: result.style,
-    tilesets: result.tilesets,
-    vectorProvider: vectorContext?.provider,
-    vectorRange: vectorContext?.range,
-    labelCollection: vectorContext?.labels?.collection,
-    setLabelsVisible(visible) { vectorContext?.labels?.setVisible(visible); },
-    setVisible(layerId, visible) {
-      vectorContext?.setVisible(layerId, visible);
-      const tileset = result.tilesets[layerId];
-      if (tileset) tileset.show = Boolean(visible);
-      viewer.scene?.requestRender?.();
-    },
-    setOpacity(layerId, nextOpacity) {
-      vectorContext?.setOpacity(layerId, nextOpacity);
-      const tileset = result.tilesets[layerId];
-      if (!tileset) return;
-      tileset.style = createMapZeroCesiumStyle(result.style, {
-        layerId,
-        opacity: clamp01(Number(nextOpacity)),
-        visibleLayers
-      });
-      viewer.scene?.requestRender?.();
-    },
+    ...result,labelCollection:labels.collection,
+    setLabelsVisible: (visible) => labels.setVisible(visible),
+    setVisible(layerId,visible) { visibility.set(layerId,Boolean(visible)); refresh(); },
+    setOpacity(layerId,value) { opacities.set(layerId,clamp01(Number(value))); refresh(); },
     destroy() {
-      vectorContext?.destroy();
-      if (vectorContext) viewer.scene.primitives.remove(vectorContext.provider);
-      for (const tileset of uniqueTilesets) {
-        viewer.scene.primitives.remove(tileset);
-      }
-      viewer.scene?.requestRender?.();
+      if (destroyed) return;
+      destroyed = true; removeCamera(); labels.destroy();
+      for (const tileset of uniqueTilesets) viewer.scene.primitives.remove(tileset);
+      viewer.scene.requestRender?.();
     }
   };
 }
@@ -403,10 +408,15 @@ function isAllowedCesiumTilesetLayer(layerId, options) {
  * @param {{ tilesetMaximumScreenSpaceError?: number, tilesetCacheBytes?: number, tilesetMaximumCacheOverflowBytes?: number }} options
  */
 function configureCesiumTilesetStreaming(tileset, layerId, options = {}) {
-  if (layerId !== 'buildings') {
+  if(tileset.hasExtension?.('3DTILES_content_gltf_vector')) {
+    tileset.maximumScreenSpaceError=finiteNumber(options.tilesetMaximumScreenSpaceError,8);
+    tileset.skipLevelOfDetail=false;
+    tileset.dynamicScreenSpaceError=false;
+    tileset.preloadWhenHidden=false;
+    tileset.cacheBytes=finiteNumber(options.tilesetCacheBytes,192*1024*1024);
+    tileset.maximumCacheOverflowBytes=finiteNumber(options.tilesetMaximumCacheOverflowBytes,32*1024*1024);
     return;
   }
-
   tileset.maximumScreenSpaceError = finiteNumber(options.tilesetMaximumScreenSpaceError, 24);
   tileset.skipLevelOfDetail = true;
   tileset.baseScreenSpaceError = 1024;
@@ -420,8 +430,8 @@ function configureCesiumTilesetStreaming(tileset, layerId, options = {}) {
   tileset.dynamicScreenSpaceErrorFactor = 4;
   tileset.preloadWhenHidden = false;
   tileset.preloadFlightDestinations = false;
-  tileset.cacheBytes = finiteNumber(options.tilesetCacheBytes, 768 * 1024 * 1024);
-  tileset.maximumCacheOverflowBytes = finiteNumber(options.tilesetMaximumCacheOverflowBytes, 512 * 1024 * 1024);
+  tileset.cacheBytes = finiteNumber(options.tilesetCacheBytes, (layerId === 'buildings' ? 192 : 64) * 1024 * 1024);
+  tileset.maximumCacheOverflowBytes = finiteNumber(options.tilesetMaximumCacheOverflowBytes, 32 * 1024 * 1024);
 }
 
 /**
@@ -431,7 +441,7 @@ function configureCesiumTilesetStreaming(tileset, layerId, options = {}) {
 function configureCesiumTilesetColor(tileset, layerId) {
   if (layerId === 'buildings') {
     tileset.backFaceCulling = false;
-    tileset.colorBlendMode = Cesium3DTileColorBlendMode.MIX;
+    tileset.colorBlendMode = Cesium3DTileColorBlendMode.REPLACE;
     tileset.colorBlendAmount = 0.45;
     return;
   }

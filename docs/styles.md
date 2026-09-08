@@ -100,4 +100,4 @@ Example:
 }
 ```
 
-Style-only changes do not require rebuilding `data.gpkg`. Regenerate PMTiles or 3D Tiles only when tile content, filtering, or geometry generation changes.
+Style-only changes do not require rebuilding `data.gpkg`. OpenLayers keeps dynamic vector styles. Cesium can change colors, classification colors, opacity and labels at runtime; line widths, altitude offsets and effective feature zoom limits are baked into its 3D Tiles and require re-export. See [Cesium styling](cesium.md#baked-versus-runtime-styling).

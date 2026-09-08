@@ -1,8 +1,8 @@
 {
   "name": "@map-zero/core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
-  "description": "Shared styles, label rules and caches for map-zero vector viewers.",
+  "description": "Shared layer descriptors, zoom visibility, styles and caches for map-zero vector viewers.",
   "license": "MIT",
   "homepage": "https://github.com/mploscos/map-zero#readme",
   "repository": {

@@ -1,3 +1,5 @@
+import { createPmtilesTileLoadFunction } from './pmtiles.js';
+export { createPmtilesVectorSource, withFeatureZoomVisibility } from './pmtiles.js';
 import { LruCache, cachedPromise } from '../../core/src/shared/cache.js';
 import MVT from 'ol/format/MVT.js';
 import WebGLVectorTileLayer from 'ol/layer/WebGLVectorTile.js';
@@ -7,6 +9,7 @@ import { createXYZ } from 'ol/tilegrid.js';
 import { PMTiles } from 'pmtiles';
 
 import { isAipLayer, layerAlias } from '../../core/src/shared/layers.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
 import { maxZoomExpression, minZoomExpression, zoomInterpolateExpression } from './zoom.js';
 
 import {
@@ -142,6 +145,7 @@ export async function createMapZeroOpenLayersLayers(options) {
   const labelController = hasEnabledLabels(styleDocument)
     ? createMapZeroLabelLayer({
         instanceId,
+        manifest,
         tileUrlFunction: createLabelTileUrlFunction(context),
         loadTileData: createLabelTileDataLoader(context),
         sourceOptions: createVectorTileSourceZoomOptions(context),
@@ -311,9 +315,11 @@ async function loadStyleDocument(manifest, manifestBaseUrl, style) {
  * @returns {Array<{ id: string, type?: string, style?: string }>}
  */
 function orderManifestLayers(manifest, styleDocument) {
-  const layers = Array.isArray(manifest.layers)
-    ? /** @type {string[]} */ (manifest.layers).map(manifestLayer)
-    : [];
+  const layers = resolveManifestLayers(manifest).map((layer) => ({
+    ...layer,
+    type: layer.geometryType ? geometryLayerType(layer.geometryType) : layerType(layer.id),
+    style: layer.id
+  }));
   const drawOrder = Array.isArray(styleDocument.drawOrder)
     ? /** @type {string[]} */ (styleDocument.drawOrder)
     : layers.map((layer) => layer.id);
@@ -328,15 +334,15 @@ function orderManifestLayers(manifest, styleDocument) {
 }
 
 /**
- * @param {string} layerId
- * @returns {{ id: string, type?: string, style?: string }}
+ * @param {string} geometryType
+ * @returns {string}
  */
-function manifestLayer(layerId) {
-  return {
-    id: layerId,
-    type: layerType(layerId),
-    style: layerId
-  };
+function geometryLayerType(geometryType) {
+  const type = geometryType.toUpperCase();
+  if (type.includes('POLYGON')) return 'polygon';
+  if (type.includes('POINT')) return 'point';
+  if (type.includes('LINESTRING')) return 'line';
+  return 'mixed';
 }
 
 /**
@@ -630,7 +636,7 @@ function createLabelTileUrlFunction(context) {
     // Labels use the same dynamic tile behavior as geometry: avoid client-side
     // bbox clipping so labels for features crossing the extraction edge can load.
     const labelLayers = activeLabelLayerIdsForZoom(
-      context.orderedLayers,
+      context.orderedLayers.filter((layer) => isLayerInZoomRange(layer, z)),
       context.styleDocument,
       context.layerVisibility,
       z
@@ -692,35 +698,6 @@ function createPmtilesArchive(context) {
 }
 
 /**
- * @param {MVT} format
- * @param {PMTiles} archive
- * @returns {(tile: { getTileCoord: () => number[], setLoader: (loader: Function) => void }) => void}
- */
-function createPmtilesTileLoadFunction(format, archive) {
-  return (tile) => {
-    tile.setLoader((extent, resolution, projection) => {
-      const [z, x, y] = tile.getTileCoord();
-      archive.getZxy(z, x, y)
-        .then((result) => {
-          if (!result) {
-            tile.setFeatures([]);
-            return;
-          }
-
-          const features = format.readFeatures(result.data, {
-            extent,
-            featureProjection: projection
-          });
-          tile.setFeatures(features);
-        })
-        .catch(() => {
-          tile.setFeatures([]);
-        });
-    });
-  };
-}
-
-/**
  * @param {number} zoom
  * @returns {'overview' | 'normal' | 'full'}
  */
@@ -745,7 +722,8 @@ function detailForZoom(zoom) {
  */
 function activeLayerIdsForZoom(orderedLayers, styleDocument, layerVisibility, zoom) {
   return orderedLayers
-    .filter((layer) => layerVisibility.get(layer.id) && zoomMatchesRule(zoom, getLayerRule(styleDocument, layer)))
+    .filter((layer) => layerVisibility.get(layer.id) && isLayerInZoomRange(layer, zoom)
+      && zoomMatchesRule(zoom, getLayerRule(styleDocument, layer)))
     .map((layer) => layer.id);
 }
 
@@ -784,12 +762,15 @@ function createWebGlStyles(context) {
     }
 
     const rule = getLayerRule(context.styleDocument, layer);
-    const filter = createLayerFilter(layer.id, rule);
+    const filters = [createLayerFilter(layer.id, rule)];
+    if (layer.minZoom !== undefined) filters.push(minZoomExpression(layer.minZoom));
+    if (layer.maxZoom !== undefined) filters.push(maxZoomExpression(layer.maxZoom));
+    const filter = filters.length === 1 ? filters[0] : ['all', ...filters];
     const styleParts = layer.id === 'roads'
       ? createRoadStyleRules(filter, rule, context.layerOpacity)
       : layer.id === 'boundaries'
       ? createBoundaryStyleRules(filter, rule, context.layerOpacity)
-      : isAipLayer(layer.id)
+      : isAipLayer(layer.id) || layer.type === 'mixed'
       ? createGeometryAwareStyleRules(filter, rule, layer.id, context.layerOpacity)
       : createLayerStyleRules(filter, rule, layer.type || 'line', layer.id, context.layerOpacity);
     for (const style of styleParts) {
@@ -1330,9 +1311,7 @@ function createGeometryAwareStyleRules(filter, rule, layerId, layerOpacity) {
     ...createLayerStyleRules(lineFilter, lineRule, 'line', layerId, layerOpacity)
   ];
 
-  if (isAipLayer(layerId)) {
-    rules.push(...createLayerStyleRules(pointFilter, rule, 'point', layerId, layerOpacity));
-  }
+  rules.push(...createLayerStyleRules(pointFilter, rule, 'point', layerId, layerOpacity));
 
   return rules;
 }

@@ -63,7 +63,7 @@ export function buildFlatLayerMesh(layerId, features, options = {}) {
  * }} options
  * @returns {FlatMesh | null}
  */
-function buildLineRibbonMesh(features, options) {
+export function buildLineRibbonMesh(features, options) {
   const positions = [];
   const normals = [];
   const bboxes = [];
@@ -112,14 +112,19 @@ export function buildPolygonSurfaceMesh(features, options) {
       }
 
       const centroid = polygonCentroid(ring);
-      const projected = projectRing(ring, centroid);
-      const triangles = earcut(projected.flat, null, 2);
+      const rings = [ring, ...polygon.slice(1).map(cleanRing).filter((hole) => hole.length >= 3)];
+      const holes = [];
+      let vertexCount = ring.length;
+      for (const hole of rings.slice(1)) { holes.push(vertexCount); vertexCount += hole.length; }
+      const points = rings.flat();
+      const projected = projectRing(points, centroid);
+      const triangles = earcut(projected.flat, holes, 2);
       if (triangles.length === 0) {
         continue;
       }
 
       const normal = wgs84SurfaceNormal(centroid[0], centroid[1]);
-      const ecef = ring.map(([lon, lat]) => wgs84ToEcef(lon, lat, options.height));
+      const ecef = points.map(([lon, lat]) => wgs84ToEcef(lon, lat, options.height));
       const vertexOffset = positions.length / 3;
       for (const point of ecef) {
         positions.push(...point);

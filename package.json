@@ -1,7 +1,7 @@
 {
   "name": "map-zero",
-  "version": "0.4.0",
-  "description": "Offline vector map packages from OSM, ready for GeoPackage, PMTiles, and 3D Tiles.",
+  "version": "0.5.0",
+  "description": "Portable vector maps from OSM or custom geospatial data, with GeoPackage storage, PMTiles delivery, and OpenLayers/Cesium integrations.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://github.com/mploscos/map-zero#readme",
@@ -18,11 +18,12 @@
   "scripts": {
     "dev": "node src/cli.js --help",
     "start": "node src/cli.js",
-    "check": "node --check src/cli.js && node --check src/build.js && node --check src/osm.js && node --check src/gpkg.js && node --check src/gpkg-read.js && node --check src/geometry-read.js && node --check src/html.js && node --check src/server.js && node --check src/bbox-server.js && node --check src/mvt.js && node --check src/pmtiles.js && node --check src/pmtiles-worker.js && node --check src/export-pmtiles.js && node --check src/package.js && node --check src/from-bbox.js && node --check src/3dtiles/b3dm.js && node --check src/3dtiles/glb.js && node --check src/3dtiles/extrude.js && node --check src/3dtiles/flat.js && node --check src/3dtiles/clipper-surfaces.js && node --check src/3dtiles/gpkg-buildings.js && node --check src/3dtiles/gpkg-features.js && node --check src/3dtiles/tileset.js && node --check src/3dtiles/export.js && node --check test-3dtiles/generate-clipper-roads.mjs && node --check test-3dtiles/generate-clipper-roads-from-gpkg.mjs && node --check src/tile-cache.js && node --check src/style-filters.js && node --check src/style-command.js && node --check src/style-presets.js && node --check src/style-themes.js && node --check src/ol.js && node --check packages/ol/src/index.js && node --check packages/ol/src/labels.js && node --check packages/ol/src/zoom.js && node --check packages/cesium/src/index.js && node --check src/layers.js && node --check src/style.js && node --check src/manifest.js && node --check src/utils.js && node --check packages/cesium/src/vector.js && node --check src/pmtiles-source.js && node --check scripts/record-readme.mjs && node --check scripts/smoke-viewers.mjs && node --check packages/core/src/labels.js && node --check packages/cesium/src/cesium-labels.js && node --check scripts/record-bbox.mjs",
+    "check": "node --check src/cli.js && node --check src/build.js && node --check src/osm.js && node --check src/gpkg.js && node --check src/gpkg-read.js && node --check src/geometry-read.js && node --check src/html.js && node --check src/server.js && node --check src/bbox-server.js && node --check src/mvt.js && node --check src/mvt-osm-policy.js && node --check src/mvt-utils.js && node --check src/pmtiles.js && node --check src/pmtiles-worker.js && node --check src/export-pmtiles.js && node --check src/pmtiles-plan.js && node --check src/package.js && node --check src/from-bbox.js && node --check src/3dtiles/b3dm.js && node --check src/3dtiles/glb.js && node --check src/3dtiles/extrude.js && node --check src/3dtiles/flat.js && node --check src/3dtiles/clipper-surfaces.js && node --check src/3dtiles/gpkg-buildings.js && node --check src/3dtiles/gpkg-features.js && node --check src/3dtiles/tileset.js && node --check src/3dtiles/export.js && node --check src/tile-cache.js && node --check src/style-filters.js && node --check src/style-command.js && node --check src/style-presets.js && node --check src/style-themes.js && node --check src/ol.js && node --check packages/ol/src/index.js && node --check packages/ol/src/labels.js && node --check packages/ol/src/zoom.js && node --check packages/cesium/src/index.js && node --check src/layers.js && node --check src/style.js && node --check src/manifest.js && node --check src/utils.js && node --check packages/cesium/src/static-style.js && node --check src/pmtiles-source.js && node --check scripts/record-readme.mjs && node --check scripts/smoke-viewers.mjs && node --check packages/core/src/labels.js && node --check packages/core/src/manifest.js && node --check packages/core/src/style.js && node --check packages/core/src/shared/layers.js && node --check packages/cesium/src/cesium-labels.js && node --check scripts/record-bbox.mjs && node --check packages/ol/src/pmtiles.js && node --check src/3dtiles/pnts.js && node --check src/3dtiles/context-mesh.js && node --check scripts/static-cesium-server.mjs && node --check scripts/smoke-static-cesium.mjs && node --check src/3dtiles/encode-mesh.js && node --check src/3dtiles/mesh-policy.js && node --check src/3dtiles/partition.js && node --check src/3dtiles/spatial-hierarchy.js && node --check src/3dtiles/create-tileset.js && node --check src/3dtiles/vector/encode-vector-gltf.js && node --check src/3dtiles/vector/extensions.js && node --check src/3dtiles/vector/metadata.js && node --check src/3dtiles/vector/validate.js && node --check src/3dtiles/vector-context.js && node --check src/3dtiles/mvt/decode.js && node --check src/3dtiles/mvt/features.js",
     "test": "node --test test/*.test.js",
     "test:browser": "node scripts/smoke-viewers.mjs",
     "docs:record": "node scripts/record-readme.mjs",
-    "docs:record:bbox": "node scripts/record-bbox.mjs"
+    "docs:record:bbox": "node scripts/record-bbox.mjs",
+    "test:browser:static": "node scripts/smoke-static-cesium.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -37,7 +38,9 @@
     "cesium",
     "openlayers",
     "offline-maps",
-    "vector-tiles"
+    "vector-tiles",
+    "geospatial",
+    "gis"
   ],
   "files": [
     "src",
@@ -66,5 +69,14 @@
     "cesium": "1.145.0",
     "ol": "10.10.0",
     "playwright-core": "1.63.0"
+  },
+  "exports": {
+    "./gpkg": "./src/gpkg.js",
+    "./gpkg-read": "./src/gpkg-read.js",
+    "./manifest": "./src/manifest.js",
+    "./export-pmtiles": "./src/export-pmtiles.js",
+    "./*": "./*",
+    "./ol": "./packages/ol/src/index.js",
+    "./ol/pmtiles": "./packages/ol/src/pmtiles.js"
   }
 }

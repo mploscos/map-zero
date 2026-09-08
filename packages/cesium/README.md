@@ -1,18 +1,26 @@
 # @map-zero/cesium
 
-Cesium integration helpers for map-zero 3D Tiles and context overlays.
+Serverless Cesium maps from prebuilt static 3D Tiles, with spatially streamed
+native vector context, extruded buildings, feature metadata and labels. GeoPackage is used during export; Cesium needs
+neither the database nor PMTiles at runtime.
 
-See the main repository for documentation, examples, and release notes:
+```js
+import { addMapZeroToCesium } from '@map-zero/cesium';
+const controller = await addMapZeroToCesium(viewer, {
+  manifestUrl: '/maps/madrid/manifest.json'
+});
+controller.setVisible('roads', false);
+controller.setOpacity('buildings', 0.6);
+controller.setLabelsVisible(false);
+controller.destroy();
+```
 
-https://github.com/mploscos/map-zero
+Install with `npm install @map-zero/cesium cesium@1.145.0`. Export the map with
+`map-zero 3dtiles <package>` and host its manifest, styles and 3dtiles directory
+as ordinary static files. OpenLayers uses the independent PMTiles output.
 
+[Full guide: export, hosting, geometry, labels, styling and limits](https://github.com/mploscos/map-zero/blob/main/docs/cesium.md).
 
-## Cesium 1.145 native vectors
-
-Version 0.4.0 renders native MVT with an XYZ `vectorTilesUrl`, using Cesium 1.145 `MVTDataProvider` and surface draping. The built-in server exposes PMTiles data at `/api/vector-tiles/{z}/{x}/{y}.mvt`.
-
-Native labels share the OpenLayers theme’s selection and priority rules, with deduplication and screen decluttering. Set `labels: false` or `maxLabels` (default 150), and toggle them with `controller.setLabelsVisible()`.
-
-The raster worker has been removed. Cesium no longer requires OpenLayers or PMTiles as peer dependencies. Provide an MVT endpoint for context, or `contextOverlay: false` for a static 3D Tiles-only scene. Re-export old PMTiles for label anchor metadata. See [integration details](https://github.com/mploscos/map-zero/blob/v0.4.0/docs/cesium.md).
-
-Requires Cesium 1.145.0 and Node 22+ for package consumers.
+Terrain clamping is disabled by default. Pass `clampToTerrain: true` when your
+scene requires terrain adaptation. Layer controls work independently even when
+context layers share the same tileset.

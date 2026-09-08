@@ -2,6 +2,8 @@
 
 Install with `npm install --global map-zero`. The commands below assume you are using the published CLI.
 
+The source-building commands (`build`, `from-bbox`, `bbox-ui`) import OSM. To define other datasets, use the [custom data JavaScript API](custom-data.md), then run `map-zero pmtiles ./dataset.mapzero --min-zoom 4 --max-zoom 14` to export their GeoPackage.
+
 ## CLI Workflows
 
 ### Build from a bbox
@@ -74,8 +76,8 @@ The base `build` command writes `data.gpkg`, `manifest.json`, and the default st
 | `manifest.json` | Layers, bounds, styles and tile asset locations | `build`; updated by exports |
 | `styles/neon-dark.json` | Default cartographic style | `build` |
 | `tiles.pmtiles` | Vector tiles for 2D and native 3D context | `pmtiles` |
-| `3dtiles/buildings/tileset.json` | Building hierarchy and tile references | `3dtiles` |
-| `3dtiles/buildings/tiles/*.b3dm` | Building geometry streamed by Cesium | `3dtiles` |
+| `3dtiles/<layer>/tileset.json` | Spatial hierarchy and tile references per layer | `3dtiles` |
+| `3dtiles/` | Vector GLBs and extruded meshes with feature/label metadata | `3dtiles` |
 
 `bbox-ui` and `from-bbox` run these stages together for the selected outputs.
 
@@ -97,3 +99,7 @@ Most users should edit compact theme JSON rather than full renderer-ready style 
 
 
 Run `map-zero --help` or `map-zero <command> --help` for all options.
+
+Vector context zoom coverage can be selected with `3dtiles --min-zoom 8 --max-zoom 16`.
+For conventional mesh context use `--context-format mesh`. See the
+[Cesium guide](cesium.md) for hosting and terrain options.

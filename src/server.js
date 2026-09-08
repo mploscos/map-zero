@@ -2,11 +2,10 @@ import { promises as fs } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, extname, join, resolve } from 'node:path';
 
-import { PMTiles } from 'pmtiles';
-import { LocalPmtilesSource } from './pmtiles-source.js';
 import Fastify from 'fastify';
 
 import { openGeoPackageReader } from './gpkg-read.js';
+import { resolveManifestLayers } from './manifest.js';
 import { createCesiumViewerHtml, createViewerHtml } from './html.js';
 import { encodeMvtTileSetWithStats, encodeMvtTileWithStats } from './mvt.js';
 import { createHiddenFilters } from './style-filters.js';
@@ -44,13 +43,14 @@ export async function createMapZeroServer(options) {
   const defaultStyle = await readDefaultStyle(packageDir, manifest);
 
   validateManifest(manifest);
-  await assertReadableFile(gpkgPath, 'GeoPackage');
-
-  const reader = openGeoPackageReader({
-    gpkgPath,
-    manifest,
-    hiddenFilters: createHiddenFilters(manifest, defaultStyle)
-  });
+  let reader = null;
+  try {
+    await fs.access(gpkgPath);
+    reader = openGeoPackageReader({ gpkgPath, manifest, hiddenFilters: createHiddenFilters(manifest, defaultStyle) });
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    if (!manifest.tiles && !manifest.tiles3d) throw new Error('GeoPackage is missing and no static exports are available');
+  }
   const assetVersion = String(Date.now());
   const tileCache = options.tileCache === false
     ? null
@@ -64,7 +64,15 @@ export async function createMapZeroServer(options) {
   app.addHook('onClose', async () => {
     tileCache?.clear();
     pendingTiles.clear();
-    reader.close();
+    reader?.close();
+  });
+
+  // The optional preview server can serve delivery-only packages. Database
+  // inspection and dynamic OpenLayers MVT still require the persistent source.
+  app.addHook('preHandler', async (request, reply) => {
+    if (!reader && request.routeOptions.url?.startsWith('/api/')) {
+      return reply.code(409).send({ error: 'This static package has no GeoPackage for dynamic queries' });
+    }
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -109,6 +117,12 @@ export async function createMapZeroServer(options) {
       .send(rewriteCoreModuleImports(moduleSource));
   });
 
+  app.get('/pmtiles.js', async (request, reply) => {
+    const moduleSource = await fs.readFile(new URL('../packages/ol/src/pmtiles.js', import.meta.url), 'utf8');
+    reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8')
+      .send(rewriteCoreModuleImports(moduleSource));
+  });
+
   app.get('/zoom.js', async (request, reply) => {
     const moduleSource = await fs.readFile(new URL('../packages/ol/src/zoom.js', import.meta.url), 'utf8');
     reply
@@ -133,7 +147,7 @@ export async function createMapZeroServer(options) {
       .send(moduleSource);
   });
 
-  for (const [route, name] of [['/map-zero-cesium.js', 'index.js'], ['/vector.js', 'vector.js'], ['/cesium-labels.js', 'cesium-labels.js']]) {
+  for (const [route, name] of [['/map-zero-cesium.js', 'index.js'], ['/static-style.js', 'static-style.js'], ['/cesium-labels.js', 'cesium-labels.js']]) {
     app.get(route, async (request, reply) => {
       const source = await fs.readFile(new URL(`../packages/cesium/src/${name}`, import.meta.url), 'utf8');
       reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8')
@@ -142,7 +156,7 @@ export async function createMapZeroServer(options) {
     });
   }
   for (const [route, allowed] of [
-    ['/map-zero-core/:name', ['style.js', 'labels.js']],
+    ['/map-zero-core/:name', ['style.js', 'labels.js', 'manifest.js']],
     ['/map-zero-core/shared/:name', ['cache.js', 'layers.js']]
   ]) {
     app.get(route, async (request, reply) => {
@@ -164,22 +178,6 @@ export async function createMapZeroServer(options) {
       await sendRangeFile(request, reply, pmtilesPath.path, 'application/vnd.pmtiles');
     });
   }
-
-  const archiveSource = pmtilesPath ? new LocalPmtilesSource(pmtilesPath.path) : null;
-  const archive = archiveSource ? new PMTiles(archiveSource) : null;
-  if (archiveSource) app.addHook('onClose', () => archiveSource.close());
-  app.get('/api/vector-tiles/:z/:x/:y.mvt', async (request, reply) => {
-    const { z, x, y } = request.params;
-    const coords = [z, x, y].map(Number);
-    if (!coords.every(Number.isInteger) || coords[0] < 0 || coords[0] > 22
-      || coords[1] < 0 || coords[2] < 0 || coords[1] >= 2 ** coords[0] || coords[2] >= 2 ** coords[0]) {
-      return reply.code(400).send({ error: 'invalid XYZ tile coordinates' });
-    }
-    if (!archive) return reply.redirect(`/api/tiles/${z}/${x}/${y}.mvt`);
-    const tile = await archive.getZxy(...coords);
-    if (!tile) return reply.code(204).send();
-    return reply.type('application/vnd.mapbox-vector-tile').send(Buffer.from(tile.data));
-  });
 
   const tilesetUrls = Object.values(manifest.tiles3d?.tilesets ?? { default: manifest.tiles3d?.url }).filter((url) => typeof url === 'string');
   const tilesetPaths = new Map();
@@ -461,6 +459,7 @@ async function assertReadableFile(filePath, label) {
  * @param {Record<string, unknown>} manifest
  */
 function validateManifest(manifest) {
+  resolveManifestLayers(manifest);
   if (manifest.format !== 'mapzero') {
     throw new Error('manifest format must be mapzero');
   }

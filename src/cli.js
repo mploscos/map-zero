@@ -19,7 +19,7 @@ const program = new Command();
 
 program
   .name('map-zero')
-  .description('Build and serve lightweight offline vector map packages from OSM PBF data.')
+  .description('Build maps from OSM, export GeoPackage datasets to PMTiles, and serve offline vector map packages.')
   .version(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
 
 program
@@ -168,8 +168,11 @@ program
   .description('Export Cesium 3D Tiles from a .mapzero package.')
   .argument('<package.mapzero>', 'map-zero package folder')
   .option('--out <dir>', 'output 3D Tiles folder; defaults to <package>/3dtiles')
-  .option('--layers <layers>', 'comma-separated 3D layers; defaults to buildings', parse3dTilesLayersOption)
-  .option('--max-depth <count>', 'quadtree depth for building tiles', parseNonNegativeIntegerOption, 8)
+  .option('--layers <layers>', 'comma-separated 3D layers; defaults to all manifest layers', parse3dTilesLayersOption)
+  .option('--context-format <format>', 'context geometry: vector or mesh', 'vector')
+  .option('--min-zoom <zoom>', 'minimum vector context zoom', parseNonNegativeIntegerOption)
+  .option('--max-zoom <zoom>', 'maximum vector context zoom', parseNonNegativeIntegerOption)
+  .option('--max-depth <count>', 'maximum spatial partition depth for 3D tiles', parseNonNegativeIntegerOption, 8)
   .option('--max-features <count>', 'maximum features per leaf tile before subdivision', parsePositiveIntegerOption, 1500)
   .option('--default-height <meters>', 'fallback building height in meters', parsePositiveNumberOption, 8)
   .action(async (packageDir, options) => {
@@ -178,6 +181,9 @@ program
         packageDir,
         out: options.out,
         layers: options.layers,
+        contextFormat: options.contextFormat,
+        minZoom: options.minZoom,
+        maxZoom: options.maxZoom,
         maxDepth: options.maxDepth,
         maxFeatures: options.maxFeatures,
         defaultHeight: options.defaultHeight,
@@ -347,7 +353,7 @@ function parseLayersOption(value) {
  */
 function parse3dTilesLayersOption(value) {
   try {
-    return parseLayerList(value, ['buildings', 'landuse', 'water', 'aip', 'railways', 'roads', 'boundaries'], LAYER_ALIASES);
+    return [...new Set(String(value).split(',').map(id => id.trim()).filter(Boolean))];
   } catch (error) {
     throw new InvalidArgumentError(error instanceof Error ? error.message : String(error));
   }
@@ -517,7 +523,9 @@ function reportPmtilesProgress(event) {
 
 /**
  * @param {{
- *   phase: 'estimate' | 'leaf' | 'done',
+ *   phase: 'estimate' | 'leaf' | 'zoom' | 'done',
+ *   zoom?: number,
+ *   candidates?: number,
  *   layerId?: string,
  *   leafIndex?: number,
  *   leafCount?: number,
@@ -528,6 +536,10 @@ function reportPmtilesProgress(event) {
  * }} event
  */
 function report3dTilesProgress(event) {
+  if (event.phase === 'zoom') {
+    console.log(`3D vector context z${event.zoom}: ${formatInteger(event.candidates ?? 0)} candidate tiles`);
+    return;
+  }
   if (event.phase === 'estimate') {
     const layerId = event.layerId ? `${event.layerId}: ` : '';
     console.log(

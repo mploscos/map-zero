@@ -1,3 +1,5 @@
+import { resolveManifestLayers } from '../manifest.js';
+
 export const DEFAULT_CONTEXT_LAYERS = ['landuse', 'terrain', 'water', 'coastline', 'cliffs', 'railways', 'roads', 'boundaries', 'aviation', 'pois'];
 
 export function normalizeContextLayers(layers) {
@@ -27,6 +29,7 @@ export function isAipLayer(layer) {
   return layer === 'aip' || layer === 'aviation';
 }
 
-export function manifestLayer(layerId) {
-  return { id: String(layerId), style: String(layerId) };
+export function manifestLayer(layer) {
+  const [descriptor] = resolveManifestLayers({ layers: [layer] });
+  return { ...descriptor, style: descriptor.id };
 }

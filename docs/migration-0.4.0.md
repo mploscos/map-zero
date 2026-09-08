@@ -12,4 +12,4 @@ map-zero serve ./madrid.mapzero --port 8080
 
 Cesium labels are enabled by default. Use the viewer’s **labels** checkbox, `controller.setLabelsVisible(false)`, or `{ labels: false, maxLabels: 150 }` in your integration. [Label behavior and options](cesium.md#labels).
 
-The Cesium integration requires Cesium 1.145.0 and Node 22+ in consuming build environments. The core CLI supports Node 20+. See [Cesium integration](cesium.md) for the native MVT API and hosting requirements.
+The Cesium integration requires Cesium 1.145.0 and Node 22+ in consuming build environments. The core CLI supports Node 20+. See [Cesium integration](cesium.md) for the current static 3D Tiles API and hosting requirements.

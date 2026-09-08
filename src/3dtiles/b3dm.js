@@ -1,31 +1,31 @@
 /**
  * Minimal Batched 3D Model (b3dm) container writer.
  *
- * map-zero currently emits one GLB per tile and does not use batch IDs or per
- * feature metadata, so the feature table only declares BATCH_LENGTH and an
- * optional RTC_CENTER for high precision rendering in Cesium.
+ * Features use standard batch-table properties and glTF _BATCHID attributes.
+ * RTC_CENTER keeps geometry localized for high precision rendering in Cesium.
  *
  * Wrap a GLB buffer in a minimal valid B3DM container.
  *
  * @param {Buffer} glb
- * @param {{ rtcCenter?: [number, number, number] }} [options]
+ * @param {{ rtcCenter?: [number, number, number], properties?: Record<string, unknown>[] }} [options]
  * @returns {Buffer}
  */
 export function buildB3dm(glb, options = {}) {
-  const featureTable = { BATCH_LENGTH: 0 };
+  const featureTable = { BATCH_LENGTH: options.properties?.length ?? 0 };
   if (options.rtcCenter) {
     featureTable.RTC_CENTER = options.rtcCenter;
   }
   const featureTableJson = padJsonForSection(featureTable, 28);
+  const batchJson = options.properties?.length ? padJsonForSection(batchTable(options.properties), 28 + featureTableJson.length) : Buffer.alloc(0);
   const header = Buffer.alloc(28);
   header.write('b3dm', 0, 4, 'ascii');
   header.writeUInt32LE(1, 4);
-  header.writeUInt32LE(28 + featureTableJson.length + glb.length, 8);
+  header.writeUInt32LE(28 + featureTableJson.length + batchJson.length + glb.length, 8);
   header.writeUInt32LE(featureTableJson.length, 12);
   header.writeUInt32LE(0, 16);
-  header.writeUInt32LE(0, 20);
+  header.writeUInt32LE(batchJson.length, 20);
   header.writeUInt32LE(0, 24);
-  return Buffer.concat([header, featureTableJson, glb]);
+  return Buffer.concat([header, featureTableJson, batchJson, glb]);
 }
 
 /**
@@ -51,4 +51,10 @@ function padJsonForSection(value, sectionOffset) {
  */
 function align(value, alignment) {
   return Math.ceil(value / alignment) * alignment;
+}
+
+/** Columnar standard batch table; preserve scalar properties and NULLs. */
+export function batchTable(properties) {
+  const keys = new Set(properties.flatMap((row) => Object.keys(row)));
+  return Object.fromEntries([...keys].map((key) => [key, properties.map((row) => row[key] ?? null)]));
 }

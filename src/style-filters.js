@@ -1,3 +1,5 @@
+import { resolveManifestLayers } from './manifest.js';
+
 /**
  * Build server/export-side filters for style rules hidden with byProperty.*.visible=false.
  *
@@ -7,7 +9,7 @@
  */
 export function createHiddenFilters(manifest, style) {
   const filters = new Map();
-  const manifestLayers = Array.isArray(manifest.layers) ? manifest.layers : [];
+  const manifestLayers = resolveManifestLayers(manifest);
   const styleLayers = /** @type {Record<string, unknown> | undefined} */ (style?.layers);
 
   if (!styleLayers || typeof styleLayers !== 'object') {
@@ -15,7 +17,7 @@ export function createHiddenFilters(manifest, style) {
   }
 
   for (const layer of manifestLayers) {
-    const layerId = String(layer);
+    const layerId = layer.id;
     const styleId = layerId;
     const styleRule = /** @type {Record<string, unknown> | undefined} */ (styleLayers[styleId] ?? styleLayers[layerAlias(styleId)]);
     const byProperty = /** @type {Record<string, unknown> | undefined} */ (styleRule?.byProperty);

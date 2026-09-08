@@ -2,14 +2,21 @@ import { existsSync, unlinkSync } from 'node:fs';
 
 import Database from 'better-sqlite3';
 
-import { LAYER_DEFINITIONS } from './layers.js';
 import { geometryBbox, quoteIdentifier } from './utils.js';
 
 const SRS_ID = 4326;
+const COLUMN_TYPES = new Set(['TEXT', 'INTEGER', 'REAL']);
+const GEOMETRY_TYPES = new Set(['POINT', 'LINESTRING', 'MULTILINESTRING', 'POLYGON', 'MULTIPOLYGON', 'GEOMETRY']);
 
 /**
  * @typedef {{ type: string, coordinates: unknown }} Geometry
- * @typedef {{ geometry: Geometry, properties: Record<string, string | null>, bbox?: [number, number, number, number] }} Feature
+ * @typedef {{ geometry: Geometry, properties: Record<string, string | number | null>, bbox?: [number, number, number, number] }} Feature
+ * @typedef {'TEXT' | 'INTEGER' | 'REAL'} ColumnType
+ * @typedef {{
+ *   id: string,
+ *   geometryType: 'POINT' | 'LINESTRING' | 'MULTILINESTRING' | 'POLYGON' | 'MULTIPOLYGON' | 'GEOMETRY',
+ *   columns: Record<string, ColumnType>
+ * }} LayerDescriptor
  */
 
 /**
@@ -17,15 +24,16 @@ const SRS_ID = 4326;
  *
  * @param {string} filePath
  * @param {Record<string, Feature[]>} featuresByLayer
- * @param {string[]} layers
+ * @param {LayerDescriptor[]} layers
  * @param {[number, number, number, number]} packageBbox
+ * @param {{lastChange?: string}} [options] Fixed ISO UTC timestamp for reproducible exports.
  */
-export function writeGeoPackage(filePath, featuresByLayer, layers, packageBbox) {
-  const writer = openGeoPackageWriter(filePath, layers, packageBbox);
+export function writeGeoPackage(filePath, featuresByLayer, layers, packageBbox, options = {}) {
+  const writer = openGeoPackageWriter(filePath, layers, packageBbox, options);
 
   try {
     writer.transaction(() => {
-      for (const layer of layers) {
+      for (const { id: layer } of layers) {
         for (const feature of featuresByLayer[layer] ?? []) {
           writer.insertFeature(layer, feature);
         }
@@ -38,10 +46,15 @@ export function writeGeoPackage(filePath, featuresByLayer, layers, packageBbox) 
 
 /**
  * Open a GeoPackage writer that accepts features incrementally.
+ * Creates a new file (replacing any existing file), with internal fid and geom
+ * columns. Properties use SQLite column affinity; missing values become NULL.
+ * Non-empty properties.id values are deduplicated per layer for this writer's
+ * lifetime, including numeric zero. Geometry coordinates must be EPSG:4326 XY.
  *
  * @param {string} filePath
- * @param {string[]} layers
+ * @param {LayerDescriptor[]} layers
  * @param {[number, number, number, number]} packageBbox
+ * @param {{lastChange?: string}} [options] Omit to retain the current-time metadata default.
  * @returns {{
  *   insertFeature: (layer: string, feature: Feature) => void,
  *   transaction: (fn: () => void) => void,
@@ -49,33 +62,45 @@ export function writeGeoPackage(filePath, featuresByLayer, layers, packageBbox) 
  *   close: () => void
  * }}
  */
-export function openGeoPackageWriter(filePath, layers, packageBbox) {
+export function openGeoPackageWriter(filePath, layers, packageBbox, options = {}) {
+  const lastChange = options.lastChange;
+  if (lastChange !== undefined && (typeof lastChange !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(lastChange) ||
+      !Number.isFinite(Date.parse(lastChange)) || new Date(lastChange).toISOString() !== lastChange)) {
+    throw new Error('GeoPackage lastChange must be an ISO UTC timestamp with milliseconds');
+  }
+  layers = validateLayerDescriptors(layers);
   if (existsSync(filePath)) {
     unlinkSync(filePath);
   }
 
   const db = new Database(filePath);
   /** @type {Record<string, { insert: Database.Statement, spatialIndex: { insert: Database.Statement } | null, propertyColumns: string[] }>} */
-  const layerWriters = {};
+  const layerWriters = Object.create(null);
   /** @type {Record<string, number>} */
-  const featureCounts = Object.fromEntries(layers.map((layer) => [layer, 0]));
-  const seenFeatureIds = Object.fromEntries(layers.map((layer) => [layer, new Set()]));
+  const featureCounts = Object.fromEntries(layers.map(({ id }) => [id, 0]));
+  const seenFeatureIds = Object.fromEntries(layers.map(({ id }) => [id, new Set()]));
   let closed = false;
 
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('application_id = 1196444487');
-  db.pragma('user_version = 10400');
+  try {
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    db.pragma('application_id = 1196444487');
+    db.pragma('user_version = 10400');
 
-  db.transaction(() => {
-    createCoreTables(db);
+    db.transaction(() => {
+      createCoreTables(db);
 
-    for (const layer of layers) {
-      createFeatureTable(db, layer);
-      registerFeatureTable(db, layer, [], packageBbox);
-      layerWriters[layer] = createLayerWriter(db, layer);
-    }
-  })();
+      for (const layer of layers) {
+        createFeatureTable(db, layer);
+        registerFeatureTable(db, layer, packageBbox, lastChange);
+        layerWriters[layer.id] = createLayerWriter(db, layer);
+      }
+    })();
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 
   return {
     insertFeature(layer, feature) {
@@ -85,12 +110,12 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
       }
 
       const featureId = feature.properties.id;
-      if (featureId) {
+      const hasFeatureId = featureId !== undefined && featureId !== null && featureId !== '';
+      if (hasFeatureId) {
         const seen = seenFeatureIds[layer];
         if (seen.has(featureId)) {
           return;
         }
-        seen.add(featureId);
       }
 
       const values = [
@@ -98,6 +123,9 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
         ...writer.propertyColumns.map((column) => feature.properties[column] ?? null)
       ];
       const info = writer.insert.run(values);
+      if (hasFeatureId) {
+        seenFeatureIds[layer].add(featureId);
+      }
       featureCounts[layer] += 1;
 
       if (writer.spatialIndex) {
@@ -118,7 +146,7 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
         return;
       }
 
-      for (const layer of layers) {
+      for (const { id: layer } of layers) {
         if (layerWriters[layer]?.spatialIndex) {
           createSpatialIndexMetadata(db, layer);
         }
@@ -128,6 +156,51 @@ export function openGeoPackageWriter(filePath, layers, packageBbox) {
       db.close();
     }
   };
+}
+
+/**
+ * Validate SQL schema inputs before replacing the output file. Copy descriptors
+ * so callers cannot change an open writer's schema by mutating their inputs.
+ *
+ * @param {LayerDescriptor[]} layers
+ * @returns {LayerDescriptor[]}
+ */
+function validateLayerDescriptors(layers) {
+  if (!Array.isArray(layers)) {
+    throw new Error('GeoPackage layers must be an array of layer descriptors');
+  }
+
+  const names = new Set();
+  return layers.map((layer) => {
+    const id = layer?.id;
+    if (typeof id !== 'string' || !id.trim() || id.includes('\0') || /^(gpkg_|sqlite_|rtree_)/i.test(id)) {
+      throw new Error(`invalid GeoPackage layer id: ${id}`);
+    }
+    if (names.has(id.toLowerCase())) {
+      throw new Error(`duplicate GeoPackage layer id: ${id}`);
+    }
+    names.add(id.toLowerCase());
+
+    if (!GEOMETRY_TYPES.has(layer.geometryType)) {
+      throw new Error(`unsupported GeoPackage geometry type for ${id}: ${layer.geometryType}`);
+    }
+    if (!layer.columns || typeof layer.columns !== 'object' || Array.isArray(layer.columns)) {
+      throw new Error(`GeoPackage layer ${id} must define columns`);
+    }
+
+    const columnNames = new Set(['fid', 'geom', 'rowid', '_rowid_', 'oid']);
+    for (const [column, type] of Object.entries(layer.columns)) {
+      if (!column.trim() || column.includes('\0') || columnNames.has(column.toLowerCase())) {
+        throw new Error(`invalid or duplicate GeoPackage column in ${id}: ${column}`);
+      }
+      if (!COLUMN_TYPES.has(type)) {
+        throw new Error(`unsupported GeoPackage column type for ${id}.${column}: ${type}`);
+      }
+      columnNames.add(column.toLowerCase());
+    }
+
+    return { id, geometryType: layer.geometryType, columns: { ...layer.columns } };
+  });
 }
 
 /**
@@ -193,18 +266,18 @@ function createCoreTables(db) {
 
 /**
  * @param {Database.Database} db
- * @param {string} layer
+ * @param {LayerDescriptor} layer
  */
 function createFeatureTable(db, layer) {
-  const definition = LAYER_DEFINITIONS[layer];
-  const columns = definition.columns
-    .map((column) => `${quoteIdentifier(column)} TEXT`)
+  const columns = [
+    `${quoteIdentifier('fid')} INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL`,
+    `${quoteIdentifier('geom')} BLOB NOT NULL`,
+    ...Object.entries(layer.columns).map(([column, type]) => `${quoteIdentifier(column)} ${type}`)
+  ]
     .join(',\n      ');
 
   db.exec(`
-    CREATE TABLE ${quoteIdentifier(layer)} (
-      ${quoteIdentifier('fid')} INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      ${quoteIdentifier('geom')} BLOB NOT NULL,
+    CREATE TABLE ${quoteIdentifier(layer.id)} (
       ${columns}
     );
   `);
@@ -212,14 +285,11 @@ function createFeatureTable(db, layer) {
 
 /**
  * @param {Database.Database} db
- * @param {string} layer
- * @param {Feature[]} features
+ * @param {LayerDescriptor} layer
  * @param {[number, number, number, number]} packageBbox
+ * @param {string | undefined} lastChange
  */
-function registerFeatureTable(db, layer, features, packageBbox) {
-  const definition = LAYER_DEFINITIONS[layer];
-  const bbox = features.length > 0 ? mergeFeatureBboxes(features) : packageBbox;
-
+function registerFeatureTable(db, layer, packageBbox, lastChange) {
   db.prepare(`
     INSERT INTO gpkg_contents (
       table_name,
@@ -230,17 +300,19 @@ function registerFeatureTable(db, layer, features, packageBbox) {
       min_y,
       max_x,
       max_y,
-      srs_id
-    ) VALUES (?, 'features', ?, ?, ?, ?, ?, ?, ?)
+      srs_id,
+      last_change
+    ) VALUES (?, 'features', ?, ?, ?, ?, ?, ?, ?, COALESCE(?, strftime('%Y-%m-%dT%H:%M:%fZ','now')))
   `).run(
-    layer,
-    layer,
-    `map-zero ${layer}`,
-    bbox[0],
-    bbox[1],
-    bbox[2],
-    bbox[3],
-    SRS_ID
+    layer.id,
+    layer.id,
+    `map-zero ${layer.id}`,
+    packageBbox[0],
+    packageBbox[1],
+    packageBbox[2],
+    packageBbox[3],
+    SRS_ID,
+    lastChange ?? null
   );
 
   db.prepare(`
@@ -252,46 +324,17 @@ function registerFeatureTable(db, layer, features, packageBbox) {
       z,
       m
     ) VALUES (?, 'geom', ?, ?, 0, 0)
-  `).run(layer, definition.gpkgGeometryType, SRS_ID);
+  `).run(layer.id, layer.geometryType, SRS_ID);
 }
 
 /**
  * @param {Database.Database} db
- * @param {string} layer
- * @param {Feature[]} features
- */
-function insertFeatures(db, layer, features) {
-  const writer = createLayerWriter(db, layer);
-
-  for (const feature of features) {
-    const values = [
-      encodeGeoPackageGeometry(feature.geometry),
-      ...writer.propertyColumns.map((column) => feature.properties[column] ?? null)
-    ];
-    const info = writer.insert.run(values);
-
-    if (writer.spatialIndex) {
-      const bbox = feature.bbox ?? geometryBbox(feature.geometry);
-      if (bbox) {
-        writer.spatialIndex.insert.run(info.lastInsertRowid, bbox[0], bbox[2], bbox[1], bbox[3]);
-      }
-    }
-  }
-
-  if (writer.spatialIndex) {
-    createSpatialIndexMetadata(db, layer);
-  }
-}
-
-/**
- * @param {Database.Database} db
- * @param {string} layer
+ * @param {LayerDescriptor} layer
  * @returns {{ insert: Database.Statement, spatialIndex: { insert: Database.Statement } | null, propertyColumns: string[] }}
  */
 function createLayerWriter(db, layer) {
-  const definition = LAYER_DEFINITIONS[layer];
-  const table = quoteIdentifier(layer);
-  const propertyColumns = definition.columns;
+  const table = quoteIdentifier(layer.id);
+  const propertyColumns = Object.keys(layer.columns);
   const columns = ['geom', ...propertyColumns];
   const insertSql = `
     INSERT INTO ${table} (${columns.map(quoteIdentifier).join(', ')})
@@ -300,7 +343,7 @@ function createLayerWriter(db, layer) {
 
   return {
     insert: db.prepare(insertSql),
-    spatialIndex: createSpatialIndex(db, layer),
+    spatialIndex: createSpatialIndex(db, layer.id),
     propertyColumns
   };
 }
@@ -421,34 +464,6 @@ function createSpatialIndexMetadata(db, layer) {
       DELETE FROM ${rtree} WHERE id = OLD.${fid};
     END;
   `);
-}
-
-/**
- * @param {Feature[]} features
- * @returns {[number, number, number, number]}
- */
-function mergeFeatureBboxes(features) {
-  /** @type {[number, number, number, number] | null} */
-  let bbox = null;
-
-  for (const feature of features) {
-    const featureBbox = feature.bbox ?? geometryBbox(feature.geometry);
-    if (!featureBbox) {
-      continue;
-    }
-
-    if (!bbox) {
-      bbox = [...featureBbox];
-      continue;
-    }
-
-    bbox[0] = Math.min(bbox[0], featureBbox[0]);
-    bbox[1] = Math.min(bbox[1], featureBbox[1]);
-    bbox[2] = Math.max(bbox[2], featureBbox[2]);
-    bbox[3] = Math.max(bbox[3], featureBbox[3]);
-  }
-
-  return bbox ?? [0, 0, 0, 0];
 }
 
 /**

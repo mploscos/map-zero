@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0
+
+- Improve Cesium label legibility with larger text and stronger contrast and outlines; add Cesium-only label presentation settings to style JSON.
+- Generate native vector 3D Tiles for map context and separate extruded building meshes. Cesium defaults to no terrain clamping, with explicit opt-in; shared context tilesets retain independent layer controls, labels and feature zoom visibility.
+- Consolidate export and viewer integration, remove experimental viewers/comparators and generated test assets, and refresh the main product recordings.
+
+- Reuse Cesium color parsing and classification rules across features and zoom updates, with weak feature caches and live visibility/opacity controls.
+
+- Cesium now consumes only static 3D Tiles for map context. Added all-layer export, feature metadata, native vector points and labels from visible tile content; removed the runtime MVT provider and its extraction endpoint. OpenLayers continues to use PMTiles. Portable ZIPs include every tileset, and the preview server supports delivery-only packages without GeoPackage.
+
+- Fixed PMTiles stream error handling and abort cleanup: wait for actual disk completion, preserve the original error, and settle worker writes before removing temporary files.
+
+- Added a public GeoPackage writer for application-defined schemas with TEXT, INTEGER and REAL columns, independent of the OSM adapter.
+- Added shared manifest layer descriptors with separate public IDs and storage tables, layer zoom ranges, optional per-feature INTEGER zoom columns and tile property selection. Existing version 1 string-layer manifests remain supported.
+- Separated OSM cartographic policies from the generic MVT pipeline and exposed public GeoPackage reader, manifest and PMTiles export entry points.
+- Added sparse PMTiles planning from RTree extents, with bounded planning memory and candidate/export metrics.
+- Added reusable OpenLayers PMTiles sources for HTTP and local files, including per-feature visibility during overzoom.
+- Documented custom data definitions and the complete features → GeoPackage → PMTiles workflow; updated package descriptions to reflect support beyond OSM.
+
 ## 0.4.0
 
 - Updated Cesium to 1.145.0; OpenLayers remains at 10.10.0. Aligned all map-zero package versions and derive CLI version from package metadata.

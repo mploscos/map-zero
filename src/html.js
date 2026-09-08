@@ -124,6 +124,7 @@ export function createViewerHtml(options = {}) {
       import View from 'ol/View.js';
       import {fromLonLat} from 'ol/proj.js';
       import {addMapZeroToOpenLayers, loadMapZeroManifest} from '/map-zero-ol.js?v=${assetVersion}';
+      import {resolveManifestLayers} from '/map-zero-core/manifest.js';
 
       const statusEl = document.getElementById('status');
       const layersEl = document.getElementById('layers');
@@ -175,8 +176,8 @@ export function createViewerHtml(options = {}) {
         globalThis.mapZeroController = controller;
         document.body.style.background = controller.style.background || '#000000';
 
-        for (const layerId of controller.manifest.layers || []) {
-          addLayerToggle(String(layerId), controller);
+        for (const {id} of resolveManifestLayers(controller.manifest)) {
+          addLayerToggle(id, controller);
         }
 
         updateStatus();
@@ -295,18 +296,7 @@ export function createCesiumViewerHtml(options = {}) {
     <title>map-zero Cesium</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
     <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
-    <script type="importmap">
-      {
-        "imports": {
-          "ol/": "https://cdn.jsdelivr.net/npm/ol@10.10.0/",
-          "rbush": "https://cdn.jsdelivr.net/npm/rbush@4.0.1/+esm",
-          "pbf": "https://cdn.jsdelivr.net/npm/pbf@5.1.2/+esm",
-          "earcut": "https://cdn.jsdelivr.net/npm/earcut@3.0.2/+esm",
-          "pmtiles": "/vendor/pmtiles.js",
-          "fflate": "/vendor/fflate.js"
-        }
-      }
-    </script>
+
     <style>
       html,
       body {
@@ -425,6 +415,7 @@ export function createCesiumViewerHtml(options = {}) {
 
     <script type="module">
       import {addMapZeroToCesium, loadMapZeroManifest} from '/map-zero-cesium.js?v=${assetVersion}';
+      import {resolveManifestLayers} from '/map-zero-core/manifest.js';
 
       const statusEl = document.getElementById('status');
       const titleEl = document.getElementById('title');
@@ -444,10 +435,10 @@ export function createCesiumViewerHtml(options = {}) {
         statusEl.textContent = 'Loading manifest';
         const manifest = await loadMapZeroManifest('/manifest.json');
         titleEl.textContent = (manifest.name || 'map-zero') + ' 3D';
-        if (!manifest.tiles3d && !manifest.tiles) {
+        if (!manifest.tiles3d) {
           throw new Error('This package does not define manifest.tiles3d. Run: map-zero 3dtiles <package.mapzero>');
         }
-        const sourceLabel = manifest.tiles3d?.url || manifest.tiles?.url || 'MVT';
+        const sourceLabel = manifest.tiles3d?.url || '3D Tiles';
 
         statusEl.textContent = 'Creating Cesium viewer';
         const Cesium = globalThis.Cesium;
@@ -478,8 +469,6 @@ export function createCesiumViewerHtml(options = {}) {
           manifestUrl: '/manifest.json',
           style: 'default',
           opacity: Number(opacityEl.value),
-          contextOverlay: params.get('overlay') !== '0',
-          vectorTilesUrl: '/api/vector-tiles/{z}/{x}/{y}.mvt',
           labels: params.get('labels') !== '0',
           zoomTo: false,
           applyDefaultSceneStyle: true
@@ -555,15 +544,15 @@ export function createCesiumViewerHtml(options = {}) {
         labelsEl.disabled = !controller.labelCollection;
         labelsEl.addEventListener('change', () => controller.setLabelsVisible(labelsEl.checked));
         opacityEl.addEventListener('input', () => {
-          for (const layerId of controller.manifest.layers || []) {
-            controller.setOpacity(layerId, Number(opacityEl.value));
+          for (const {id} of resolveManifestLayers(controller.manifest)) {
+            controller.setOpacity(id, Number(opacityEl.value));
           }
         });
       }
 
       function createLayerControls(container, controller) {
         container.textContent = '';
-        for (const layerId of controller.manifest.layers || []) {
+        for (const {id: layerId} of resolveManifestLayers(controller.manifest)) {
           const label = document.createElement('label');
           label.className = 'control-row';
 

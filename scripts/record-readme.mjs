@@ -42,7 +42,7 @@ async function caption(kicker, title, detail) {
 try {
   if (!process.argv.includes('--3d-only')) {
   const log = (await readFile(logPath, 'utf8')).split('\n').filter(Boolean);
-  await page.setContent(`<html><style>*{box-sizing:border-box}body{margin:0;background:#071018;color:#dceced;font:16px system-ui;padding:46px 58px}small{color:#70e2d3;letter-spacing:4px;font-size:11px}h1{font-size:42px;letter-spacing:-1.5px;margin:16px 0 8px}p{color:#91a9b5;margin:0 0 28px}section{height:410px;border:1px solid #28424c;border-radius:14px;background:#0b161e;overflow:hidden}header{background:#12232e;padding:13px 20px;color:#aec8cc;font-size:12px;border-bottom:1px solid #28424c}pre{padding:20px;margin:0;font:14px/1.7 monospace;white-space:pre-wrap;color:#9ee4d8}footer{display:flex;justify-content:space-between;margin-top:24px;color:#698592;font-size:12px}</style><small>MAP ZERO / 01 GENERATE</small><h1>From OpenStreetMap to your own map.</h1><p>One local workflow. Portable data for 2D and 3D.</p><section><header>● ● ● &nbsp; map-zero · Madrid, Spain · actual CLI output</header><pre id="log"></pre></section><footer><span>GeoPackage → PMTiles → 3D Tiles</span><span>Time-compressed build replay · v0.4.0</span></footer></html>`);
+  await page.setContent(`<html><style>*{box-sizing:border-box}body{margin:0;background:#071018;color:#dceced;font:16px system-ui;padding:46px 58px}small{color:#70e2d3;letter-spacing:4px;font-size:11px}h1{font-size:42px;letter-spacing:-1.5px;margin:16px 0 8px}p{color:#91a9b5;margin:0 0 28px}section{height:410px;border:1px solid #28424c;border-radius:14px;background:#0b161e;overflow:hidden}header{background:#12232e;padding:13px 20px;color:#aec8cc;font-size:12px;border-bottom:1px solid #28424c}pre{padding:20px;margin:0;font:14px/1.7 monospace;white-space:pre-wrap;color:#9ee4d8}footer{display:flex;justify-content:space-between;margin-top:24px;color:#698592;font-size:12px}</style><small>MAP ZERO / 01 GENERATE</small><h1>From OpenStreetMap to your own map.</h1><p>One local workflow. Portable data for 2D and 3D.</p><section><header>● ● ● &nbsp; map-zero · Madrid, Spain · actual CLI output</header><pre id="log"></pre></section><footer><span>GeoPackage → PMTiles + 3D Tiles</span><span>Time-compressed build replay · v0.5.0</span></footer></html>`);
   for (let i = 0; i < 36; i++) {
     const end = Math.max(1, Math.ceil((i + 1) / 36 * log.length));
     await page.locator('#log').evaluate((el, text) => { el.textContent = text; }, log.slice(Math.max(0, end - 12), end).join('\n'));
@@ -68,15 +68,15 @@ try {
   }
 
   await page.goto(url + '/cesium', { timeout: 60000 });
-  await page.waitForFunction(() => globalThis.mapZeroController?.vectorProvider && mapZeroController.vectorProvider.tileset.tilesLoaded);
+  await page.waitForFunction(() => globalThis.mapZeroController && Object.values(mapZeroController.tilesets).every(t => !t.show || t.tilesLoaded));
   await page.evaluate(() => {
     viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(-3.703, 40.4175, 0),
       new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-25), Cesium.Math.toRadians(-38), 850));
     viewer.scene.requestRender();
   });
-  await page.waitForFunction(() => mapZeroController.labelCollection.length > 0 && mapZeroController.vectorProvider.tileset.tilesLoaded);
+  await page.waitForFunction(() => mapZeroController.labelCollection.length > 0 && Object.values(mapZeroController.tilesets).every(t => !t.show || t.tilesLoaded));
   await page.waitForTimeout(4000);
-  await caption('MAP ZERO / 03 DISCOVER', 'The same data. In 3D.', 'Cesium 1.145 · native MVT · labels · 3D buildings');
+  await caption('MAP ZERO / 03 DISCOVER', 'The same data. In 3D.', 'Cesium 1.145 · static 3D Tiles · streamed labels');
   for (let i = 0; i < 48; i++) {
     await page.evaluate((i) => {
       const target = Cesium.Cartesian3.fromDegrees(-3.703, 40.4175, 0);

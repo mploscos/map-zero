@@ -8,6 +8,7 @@
  *
  * @typedef {{
  *   positions: Float32Array,
+ *   batchIds?: Uint16Array | Float32Array,
  *   normals?: Float32Array,
  *   indices: Uint16Array | Uint32Array,
  *   min: [number, number, number],
@@ -40,6 +41,14 @@ export function buildGlbFromMesh(mesh, options = {}) {
     min: mesh.min,
     max: mesh.max
   });
+
+  if (mesh.batchIds) {
+    const view = appendBuffer(binBuilder, bufferFromTypedArray(mesh.batchIds), 4);
+    bufferViews.push({ buffer: 0, byteOffset: view.byteOffset, byteLength: view.byteLength, target: 34962 });
+    attributes._BATCHID = accessors.length;
+    accessors.push({ bufferView: bufferViews.length - 1, componentType: mesh.batchIds instanceof Float32Array ? 5126 : 5123,
+      count: mesh.batchIds.length, type: 'SCALAR' });
+  }
 
   const includeNormals = options.includeNormals === true
     && mesh.normals

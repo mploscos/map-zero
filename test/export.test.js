@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { PMTiles, Compression, tileIdToZxy } from 'pmtiles';
 import { writeGeoPackage } from '../src/gpkg.js';
+import { geoPackageLayersForOsm } from '../src/layers.js';
 import { createManifest } from '../src/manifest.js';
 import { exportPmtiles } from '../src/export-pmtiles.js';
 import { writePmtilesArchive } from '../src/pmtiles.js';
@@ -20,18 +21,18 @@ async function fixture(t) {
     geometry: { type: 'Polygon', coordinates: [[[x, y], [x + 0.003, y], [x + 0.003, y + 0.003], [x, y + 0.003], [x, y]]] } });
   const buildings = Array.from({ length: 5 }, (_, i) => polygon(i, -0.002 + i * 0.0002, -0.002 + i * 0.0002));
   const layers = ['buildings', 'landuse'];
-  writeGeoPackage(join(dir, 'data.gpkg'), { buildings, landuse: buildings }, layers, bbox);
+  writeGeoPackage(join(dir, 'data.gpkg'), { buildings, landuse: buildings }, geoPackageLayersForOsm(layers), bbox);
   const manifest = createManifest({ outDir: dir, bbox, layers });
   manifest.styles = {};
   await writeFile(join(dir, 'manifest.json'), JSON.stringify(manifest));
   return dir;
 }
 
-test('sequential and parallel PMTiles preserve every decoded tile and serve native MVT bytes', async (t) => {
+test('sequential and parallel PMTiles preserve every decoded tile and retain dynamic OpenLayers MVT', async (t) => {
   const dir = await fixture(t);
   const results = [];
-  for (const workers of [1, Math.min(2, availableParallelism())]) {
-    const result = await exportPmtiles({ packageDir: dir, out: join(dir, `${workers}.pmtiles`), minZoom: 14, maxZoom: 15, workers });
+  for (const [workers, pruneEmptyTiles] of [[1, false], [1, true], [Math.min(2, availableParallelism()), true]]) {
+    const result = await exportPmtiles({ packageDir: dir, out: join(dir, `${workers}-${pruneEmptyTiles}.pmtiles`), minZoom: 14, maxZoom: 15, workers, pruneEmptyTiles });
     const source = new LocalPmtilesSource(result.outPath);
     const archive = new PMTiles(source);
     try {
@@ -53,16 +54,14 @@ test('sequential and parallel PMTiles preserve every decoded tile and serve nati
       if (results.length === 2) {
         const app = await createMapZeroServer({ packageDir: dir });
         try {
-          const reply = await app.inject('/api/vector-tiles/14/8192/8192.mvt');
-          assert.equal(reply.statusCode, 200);
-          assert.deepEqual(reply.rawPayload, Buffer.from((await archive.getZxy(14, 8192, 8192)).data));
-          assert.equal((await app.inject('/api/vector-tiles/23/0/0.mvt')).statusCode, 400);
-          assert.equal((await app.inject('/api/vector-tiles/14/0/0.mvt')).statusCode, 204);
+          assert.equal((await app.inject('/api/vector-tiles/14/8192/8192.mvt')).statusCode, 404);
+          assert.equal((await app.inject('/api/tiles/14/8192/8192.mvt')).statusCode, 200);
         } finally { await app.close(); }
       }
     } finally { await source.close(); }
   }
   assert.deepEqual(results[0], results[1]);
+  assert.deepEqual(results[0], results[2]);
   assert.equal((await readdir(dir)).filter((name) => name.includes('.tiles-')).length, 0);
 });
 
@@ -95,7 +94,7 @@ test('3D export emits crossing buildings once and never truncates dense flat lea
   const dir = await fixture(t);
   for (const maxDepth of [0, 2]) {
     const counts = new Map();
-    await export3dTiles({ packageDir: dir, layers: ['buildings', 'landuse'], maxFeatures: 1, maxDepth,
+    await export3dTiles({contextFormat:'mesh', packageDir: dir, layers: ['buildings', 'landuse'], maxFeatures: 1, maxDepth,
       onProgress: (event) => {
         if (event.phase === 'leaf') counts.set(event.layerId, (counts.get(event.layerId) ?? 0) + event.featureCount);
       }

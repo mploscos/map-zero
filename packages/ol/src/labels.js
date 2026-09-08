@@ -1,4 +1,6 @@
 import { LruCache } from '../../core/src/shared/cache.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
+import { layerAlias } from '../../core/src/shared/layers.js';
 import Feature from 'ol/Feature.js';
 import MVT from 'ol/format/MVT.js';
 import VectorTileLayer from 'ol/layer/VectorTile.js';
@@ -37,6 +39,7 @@ import {
 export { activeLabelLayerIdsForZoom, hasEnabledLabels } from '../../core/src/labels.js';
 
 export function createMapZeroLabelLayer(options) {
+  const layers = new Map(resolveManifestLayers(options.manifest ?? {}).map((layer) => [layer.id, layer]));
   // The geometry layer already decodes every map layer. Labels only need these
   // source layers, so do not create Canvas features for buildings, water or
   // other non-label data a second time.
@@ -87,7 +90,12 @@ export function createMapZeroLabelLayer(options) {
     declutter: true,
     updateWhileAnimating: false,
     updateWhileInteracting: false,
-    style: (feature, resolution) => labelStyle(feature, resolution, options.styleDocument, styleCache)
+    style: (feature, resolution) => {
+      const id = feature.get('sourceLayer') || feature.get('layer');
+      const layer = layers.get(id) ?? layers.get(layerAlias(id));
+      if (layer && !isLayerInZoomRange(layer, resolutionToZoom(resolution))) return null;
+      return labelStyle(feature, resolution, options.styleDocument, styleCache);
+    }
   });
   if (typeof layer.set === 'function' && options.instanceId) {
     layer.set('mapzero:id', options.instanceId);

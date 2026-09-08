@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { resolveManifestLayers } from './manifest.js';
 
 import {
   createStyleFromPreset,
@@ -27,7 +28,7 @@ export async function writePackageStyle(options) {
     throw new Error('manifest must be a mapzero package with layers');
   }
 
-  const selectedLayers = manifest.layers.map(String);
+  const selectedLayers = resolveManifestLayers(manifest).map((layer) => layer.id);
   const sourceType = options.theme ? 'theme' : 'preset';
   const styleDocument = options.theme
     ? createStyleFromTheme(options.theme, selectedLayers)

@@ -1,165 +1,139 @@
-# Cesium Integration
+# Cesium: static 3D Tiles
 
-The Cesium helper adds exported 3D Tiles to an existing Cesium viewer. It does not create or own the viewer.
+Build and display your map with CesiumJS 1.145.0. Map context uses native vector
+3D Tiles; buildings use extruded meshes. Both load from ordinary static files,
+with feature styling, layer controls and streamed labels.
 
-```js
-import { Viewer } from 'cesium';
-import { addMapZeroToCesium } from '@map-zero/cesium';
+## Build and host
 
-const viewer = new Viewer('cesiumContainer');
-
-const controller = await addMapZeroToCesium(viewer, {
-  id: 'huelva',
-  manifestUrl: './huelva.mapzero/manifest.json',
-  vectorTilesUrl: 'https://maps.example.com/huelva/{z}/{x}/{y}.mvt',
-  style: 'default'
-});
+```bash
+npm install --global map-zero
+map-zero 3dtiles ./madrid.mapzero
+map-zero serve ./madrid.mapzero --port 8080
 ```
 
-## Native vectors in Cesium 1.145
+Open `http://127.0.0.1:8080/cesium`. For static hosting, serve `manifest.json`,
+`styles/` and `3dtiles/` with their relative paths intact. Cesium does not request
+GeoPackage, PMTiles or a vector-tile API. A cross-origin host needs normal CORS
+headers. Host Cesium's assets locally too when offline operation is required.
 
-The built-in `/cesium` viewer uses native MVT context by default, with exported 3D Tiles for buildings. It reads the **same vector tiles** as OpenLayers; the server extracts them from PMTiles through an XYZ endpoint without rasterizing or regenerating them.
+Select layers and vector detail:
+
+```bash
+map-zero 3dtiles ./madrid.mapzero --layers roads,buildings,water,pois --min-zoom 8 --max-zoom 16
+```
+
+Zoom defaults come from `manifest.tiles`, or 8–16 if absent. Feature and layer
+zoom limits further restrict visibility. `--max-features` and `--max-depth`
+control mesh partitioning; `--default-height` supplies missing building heights.
+To produce conventional mesh context instead, use `--context-format mesh`.
+
+## Add to your application
+
+```bash
+npm install @map-zero/cesium cesium@1.145.0
+```
 
 ```js
-import { HeightReference, Viewer } from 'cesium';
 import { addMapZeroToCesium } from '@map-zero/cesium';
 
-const viewer = new Viewer('cesiumContainer', {
-  baseLayer: false,
-  requestRenderMode: true,
-  maximumRenderTimeChange: Infinity
-});
 const controller = await addMapZeroToCesium(viewer, {
-  manifestUrl: 'http://localhost:8080/manifest.json',
-  vectorTilesUrl: 'http://localhost:8080/api/vector-tiles/{z}/{x}/{y}.mvt',
-  vectorHeightReference: HeightReference.CLAMP_TO_TERRAIN
+  manifestUrl: 'https://maps.example.com/madrid/manifest.json',
+  labels: true,
+  maxLabels: 150,
+  zoomTo: false
 });
+
 controller.setVisible('roads', false);
-controller.setOpacity('water', 0.5);
-```
-
-Use `HeightReference.CLAMP_TO_GROUND` to drape polygons and lines onto terrain **and 3D Tiles**, using the new 1.145 API. `CLAMP_TO_TERRAIN` keeps road context on the ground. `HeightReference.NONE` draws geometry on the ellipsoid.
-
-`vectorTilesUrl` is required for native context. The raster-worker path and its options were removed in 0.4.0. Static applications need an XYZ MVT service, or can use `contextOverlay: false` to display only exported 3D Tiles.
-
-The native provider is available as `controller.vectorProvider`, and the effective zoom range as `controller.vectorRange`. `vectorMaxZoom` can reduce detail and initialization cost. The helper limits the estimated runtime hierarchy to 20,000 nodes. Package bounds are required.
-
-Cesium's native MVT API is experimental. Base colors, feature overrides, widths, visibility and opacity share the map-zero theme, with native text labels using shared selection rules. Polygon outlines, glow, casings and dashes still differ from OpenLayers. New archives contain `mapzero_geometry` for styling mixed layers; re-export older archives for the most accurate classification. See the [performance review](performance.md) for measurements and limitations.
-
-Cesium 1.145 requires Node 22+ in consuming build environments. OpenLayers remains on 10.10.0.
-
-## Export 3D Tiles
-
-```bash
-node src/cli.js 3dtiles ./huelva.mapzero
-```
-
-By default, the exporter writes the building 3D Tiles layer:
-
-- `buildings`
-
-The default tiling uses `--max-depth 8 --max-features 1500`, which keeps dense
-city exports split into smaller b3dm files so Cesium can stream and cull them
-instead of parsing a few very large tiles.
-
-Use `--layers` to export additional flat meshes:
-
-```bash
-node src/cli.js 3dtiles ./huelva.mapzero --layers buildings,roads
-```
-
-Buildings are extruded. Heights use `height`, then `building:levels * 3`, then the configured default height.
-
-Non-building layers are exported as flat cartographic meshes:
-
-- roads, railways, and boundaries become buffered/dissolved line surfaces
-- landuse, water, and AIP/aeronautical polygons become flat indexed surfaces
-- AIP points such as helipads can become small flat markers
-
-Terrain edge overlays (`terrain`, `coastline`, `cliffs`) are rendered through native MVT. They are not exported as 3D Tiles geometry.
-
-## Scene Configuration
-
-The helper does not change global Cesium scene settings by default. Applications control terrain, fog, atmosphere, lighting, and background.
-
-Optional tactical defaults:
-
-```js
-await addMapZeroToCesium(viewer, {
-  manifestUrl: './huelva.mapzero/manifest.json',
-  vectorTilesUrl: 'https://maps.example.com/huelva/{z}/{x}/{y}.mvt',
-  style: 'default',
-  applyDefaultSceneStyle: true
-});
-```
-
-You can also provide your own scene hook:
-
-```js
-await addMapZeroToCesium(viewer, {
-  manifestUrl: './huelva.mapzero/manifest.json',
-  vectorTilesUrl: 'https://maps.example.com/huelva/{z}/{x}/{y}.mvt',
-  configureScene(viewer) {
-    viewer.scene.fog.enabled = false;
-  }
-});
-```
-
-## Multiple Packages
-
-```js
-const madrid = await addMapZeroToCesium(viewer, {
-  id: 'madrid',
-  manifestUrl: './madrid.mapzero/manifest.json',
-  vectorTilesUrl: 'https://maps.example.com/madrid/{z}/{x}/{y}.mvt'
-});
-
-const huelva = await addMapZeroToCesium(viewer, {
-  id: 'huelva',
-  manifestUrl: './huelva.mapzero/manifest.json',
-  vectorTilesUrl: 'https://maps.example.com/huelva/{z}/{x}/{y}.mvt'
-});
-
-madrid.setVisible('buildings', false);
-huelva.destroy();
-```
-
-Each controller owns only its package primitives.
-
-## Controller
-
-```js
-controller.setVisible('buildings', true);
-controller.setOpacity('buildings', 0.7);
+controller.setOpacity('water', 0.6);
 controller.setLabelsVisible(false);
 controller.destroy();
 ```
 
-The module exports:
+Use `requestRenderMode: true` and `maximumRenderTimeChange: Infinity` on your
+Cesium Viewer. Bundle/host Cesium Workers, Assets and Widgets as usual.
+The helper owns only its own tilesets, labels and listeners.
 
-- `loadMapZeroManifest`
-- `loadMapZeroStyle`
-- `createMapZeroCesiumTilesets`
-- `addMapZeroToCesium`
-- `applyMapZeroCesiumSceneStyle`
-- `createMapZeroCesiumStyle`
+The default is **no terrain clamping** (`HeightReference.NONE`). For a scene
+where context must follow terrain, pass `clampToTerrain: true` to
+`addMapZeroToCesium`. Clamping adds rendering work and can reduce responsiveness.
+Applications calling `createMapZeroCesiumTilesets` directly must also pass their
+`scene` when enabling clamping. Buildings retain their baked geometry.
 
-## Labels
+## Layers, styling and labels
 
-Labels are enabled by default and rendered by a native Cesium `LabelCollection`. They reuse the MVT tiles already loaded by the native provider, with no additional tile requests or geometry decoding. Names, road references, POI selection, zoom thresholds, font, halo and priority come from the same theme rules as OpenLayers.
+`controller.tilesets` is keyed by public layer ID. Context layers can share the
+same Cesium tileset instance; use the controller's visibility/opacity methods to
+control them independently. Destroying the controller removes each primitive once.
 
-Names longer than 64 characters are abbreviated with an ellipsis. The controller deduplicates labels across tile and zoom boundaries and rejects overlapping screen rectangles, keeping at most `maxLabels` (default 150, configurable from 1 to 1,000). Layer visibility and opacity also apply to labels. Road labels are placed at a stable midpoint, aligned with the screen; they do not curve along roads as in OpenLayers. Labels clamp to terrain and draw above nearby geometry for readability, with horizon culling in 3D.
+Native lines use the theme's stroke color and width; points use its color and
+size; polygons use its fill and opacity. Properties support classification rules.
+Labels are selected from visible content, respect layer/feature zoom limits and
+are capped at 150 by default (up to 1,000). No global label file is required.
+Changing baked geometry or exported zoom coverage requires another export.
 
-```js
-const controller = await addMapZeroToCesium(viewer, {
-  manifestUrl: '/manifest.json',
-  vectorTilesUrl: '/api/vector-tiles/{z}/{x}/{y}.mvt',
-  labels: true,
-  maxLabels: 150
-});
-controller.setLabelsVisible(false);
+Labels use larger text and opaque theme colors with a stronger outline for
+contrast over 3D geometry. Layer opacity controls still fade the labels.
+Customize their appearance in your style JSON without re-exporting tiles:
+
+```json
+{
+  "labels": {
+    "cesium": {
+      "fontScale": 1.3,
+      "opacity": 1,
+      "haloOpacity": 1,
+      "haloWidth": 4
+    }
+  }
+}
 ```
 
-The built-in viewer has a **labels** checkbox; `?labels=0` starts with labels hidden. The label collection is available as `controller.labelCollection`. `destroy()` removes the collection and its frame listeners.
+Merge this section into the existing style, retaining its label rules. These
+settings only affect Cesium; label colors and priorities come from the theme.
 
-Existing PMTiles remain readable but need re-exporting with 0.4.0 for Cesium labels. New tiles contain `mapzero_label_lon` and `mapzero_label_lat`, computed before clipping and simplification. Re-run `map-zero pmtiles <package>` using your desired zoom range; the GeoPackage and 3D Tiles can be reused. Dynamic MVT includes these fields automatically.
+The Cesium view does not reproduce every OpenLayers paint effect: road casings,
+glow and dash patterns are not separate rendering passes. Supply styles for
+custom layer IDs. Use `style` when creating the controller to select a manifest
+style or provide a style object.
+
+Streaming options are `tilesetMaximumScreenSpaceError`, `tilesetCacheBytes` and
+`tilesetMaximumCacheOverflowBytes`. Defaults for vector context are SSE 8,
+192 MiB cache and 32 MiB overflow. Budgets belong to unique tilesets, not every
+logical layer referencing them. See [technical limits](cesium-format.md) before
+relying on the vector renderer's memory accounting or enabling clamping.
+
+## Custom data and output
+
+Custom layers accept point, line, polygon and multipart geometries. Descriptors
+with `tiles3d: {strategy: 'extruded'}` produce separate solid mesh tilesets;
+other layers enter the vector context. Extruded solids use feature height,
+building levels where applicable, then the export default.
+
+Mesh-specific `height` and `widthMeters` settings apply to mesh output; native
+vector line widths come from the theme. The vector context uses the existing
+MVT cartographic selection at build time, in EPSG:4326 source coordinates;
+this is a map surface workflow, not a conversion of arbitrary volumetric data.
+
+A typical manifest references shared context and separate buildings:
+
+```json
+{
+  "tiles3d": {
+    "format": "3dtiles",
+    "url": "3dtiles/context/tileset.json",
+    "layers": ["roads", "pois", "buildings"],
+    "tilesets": {
+      "roads": "3dtiles/context/tileset.json",
+      "pois": "3dtiles/context/tileset.json",
+      "buildings": "3dtiles/buildings/tileset.json"
+    }
+  }
+}
+```
+
+`tiles3d.representations` records per-layer counts and visibility ranges. Vector
+feature counts include representations across exported LODs; `sourceFeatures`
+counts GeoPackage rows. `tiles3d.warnings` reports degenerate polygon parts or
+holes collapsed during quantization. `map-zero package` includes all referenced
+GLBs and meshes. Source GeoPackage inclusion is optional.

@@ -1,0 +1,624 @@
+{
+  "default-7": {
+    "tile": "943f680c8d84819b9a634b707b45b2b27224b6f0903f9fd8e52b5616a4da9ff7",
+    "queries": "1f01b543ac229d170a2c5fca7455ae5626f3450b225225f41997da3ef0815d22",
+    "stats": {
+      "featureCount": 1735,
+      "originalFeatureCount": 2814,
+      "encodedFeatureCount": 1735,
+      "droppedFeatureCount": 1079,
+      "bbox": [
+        0,
+        0,
+        2.8125,
+        2.8113711933311296
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 6250,
+      "simplifiedVertexCount": 4796,
+      "droppedSmallFeatures": 279,
+      "simplificationTolerance": 0.010045623779296875
+    }
+  },
+  "default-9": {
+    "tile": "fe40ff3bd7923f130adb221959833a9e07d33cb5e4df74c56a8042c1bacf73fe",
+    "queries": "d3d62e9c8fb3abe71e15555cd3fe16796bf05588e51baba78dd05fde4490b92b",
+    "stats": {
+      "featureCount": 1715,
+      "originalFeatureCount": 2814,
+      "encodedFeatureCount": 1715,
+      "droppedFeatureCount": 1099,
+      "bbox": [
+        0,
+        0,
+        0.703125,
+        0.7031073524364867
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 6250,
+      "simplifiedVertexCount": 4615,
+      "droppedSmallFeatures": 299,
+      "simplificationTolerance": 0.001793861389160156
+    }
+  },
+  "default-10": {
+    "tile": "a6f9c0ae40a9ad4886cf5bc3a6f71798049a738007a0291ee5a67e6e1259d540",
+    "queries": "16636cb5c04d8d562e02f8783c01e19f27bf7ba2ec15448398ed4055d0f1b81c",
+    "stats": {
+      "featureCount": 1727,
+      "originalFeatureCount": 2829,
+      "encodedFeatureCount": 1727,
+      "droppedFeatureCount": 1102,
+      "bbox": [
+        0,
+        0,
+        0.3515625,
+        0.35156029399227234
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 6301,
+      "simplifiedVertexCount": 4652,
+      "droppedSmallFeatures": 302,
+      "simplificationTolerance": 0.0007175445556640625
+    }
+  },
+  "default-11": {
+    "tile": "bafa02397a93ffa972220326eda7504133d96f677c0b3d76812b99fc9d1b9828",
+    "queries": "c1848cabcccd4dc967be426b3b47e6b8632e68ff6cff5078a38551cf37a01530",
+    "stats": {
+      "featureCount": 2267,
+      "originalFeatureCount": 2829,
+      "encodedFeatureCount": 2267,
+      "droppedFeatureCount": 562,
+      "bbox": [
+        0,
+        0,
+        0.17578125,
+        0.1757809742470874
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 8701,
+      "simplifiedVertexCount": 6396,
+      "droppedSmallFeatures": 562,
+      "simplificationTolerance": 0.0002124309539794922
+    }
+  },
+  "default-12": {
+    "tile": "c93d544689c022b6e9e90aeb694dd0efdeafd86addd565498a6c83e57540b30a",
+    "queries": "ddd0470c828f436964f29e85e306bd299076bbfc753897c18efb8c1dca6ed7b4",
+    "stats": {
+      "featureCount": 3101,
+      "originalFeatureCount": 3973,
+      "encodedFeatureCount": 3101,
+      "droppedFeatureCount": 872,
+      "bbox": [
+        0,
+        0,
+        0.087890625,
+        0.08789059053082508
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 12203,
+      "simplifiedVertexCount": 9376,
+      "droppedSmallFeatures": 692,
+      "simplificationTolerance": 0.00006437301635742188
+    }
+  },
+  "default-13": {
+    "tile": "43178964888837709a0f5439d2a94cbac3a2fa7ee0f9533f867a73cf45775591",
+    "queries": "8610d7835c275a8fc379cff77b4296b62c967e69e938a064c4b733197eb295a2",
+    "stats": {
+      "featureCount": 3325,
+      "originalFeatureCount": 3993,
+      "encodedFeatureCount": 3325,
+      "droppedFeatureCount": 668,
+      "bbox": [
+        0,
+        0,
+        0.0439453125,
+        0.04394530819135123
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 13171,
+      "simplifiedVertexCount": 10446,
+      "droppedSmallFeatures": 668,
+      "simplificationTolerance": 0.000019311904907226562
+    }
+  },
+  "default-14": {
+    "tile": "d32fd5f6151f9cee160e69caff4fdca0916c5e5b92edb755c20b7b4d2ca6316a",
+    "queries": "f8610ea9cc18681f2f47d6d45bcbaf736feb80bc06ac558281ea985999e7bb86",
+    "stats": {
+      "featureCount": 4085,
+      "originalFeatureCount": 4883,
+      "encodedFeatureCount": 4085,
+      "droppedFeatureCount": 798,
+      "bbox": [
+        0,
+        0,
+        0.02197265625,
+        0.021972655711418845
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 16321,
+      "simplifiedVertexCount": 13884,
+      "droppedSmallFeatures": 798,
+      "simplificationTolerance": 0.000004827976226806641
+    }
+  },
+  "default-15": {
+    "tile": "141a4a313257eb4d33f7b2004eb2b1f9dba3703d1db40bc542af29dad1776b69",
+    "queries": "22bfc5f9bcac2ce2dfae214fc598135dbe7c54cf7c75c7ad8cd2875fa9111906",
+    "stats": {
+      "featureCount": 6663,
+      "originalFeatureCount": 6663,
+      "encodedFeatureCount": 6663,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.010986328125,
+        0.010986328057677354
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 22621,
+      "simplifiedVertexCount": 22621,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 2.950429916381836e-7
+    }
+  },
+  "default-16": {
+    "tile": "0223fe2a5f1ddc93c948ebb3ebb4dc3fa01c752b336d8527729c7702b3541c24",
+    "queries": "d92009af5e55f26fa6c26c89fba89208ed2d8dc7a1e04361c2d80461d5f850b5",
+    "stats": {
+      "featureCount": 6857,
+      "originalFeatureCount": 6857,
+      "encodedFeatureCount": 6857,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.0054931640625,
+        0.005493164054084669
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 22815,
+      "simplifiedVertexCount": 22815,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  },
+  "default-17": {
+    "tile": "4a79d98f0ecd3e248b60b7da54a5bdfe123d95b74ab515a806cbe502597f4a39",
+    "queries": "5632977ef68aea5e014f747f78bdbfc52772fd4916117e1b4ae81c8f48e5e306",
+    "stats": {
+      "featureCount": 6857,
+      "originalFeatureCount": 6857,
+      "encodedFeatureCount": 6857,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.00274658203125,
+        0.0027465820301980836
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 22815,
+      "simplifiedVertexCount": 22815,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  },
+  "default-18": {
+    "tile": "19fcfa7e0e56f95e4de1f945501a2e3ce722ab4361248a466840123bbd8886cb",
+    "queries": "68410272f2d1aa65d01312e2103d056e430a62b3b3980a7b17586e8eec9a1a7a",
+    "stats": {
+      "featureCount": 6857,
+      "originalFeatureCount": 6857,
+      "encodedFeatureCount": 6857,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.001373291015625,
+        0.0013732910154935106
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 22815,
+      "simplifiedVertexCount": 22815,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  },
+  "overview-budget": {
+    "tile": "0bb2737587cb74e6c2db5c6900546385c1f38fd93cf68c73f0519977b584d091",
+    "queries": "ddd0470c828f436964f29e85e306bd299076bbfc753897c18efb8c1dca6ed7b4",
+    "stats": {
+      "featureCount": 37,
+      "originalFeatureCount": 3973,
+      "encodedFeatureCount": 37,
+      "droppedFeatureCount": 3936,
+      "bbox": [
+        0,
+        0,
+        0.087890625,
+        0.08789059053082508
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 125,
+      "simplifiedVertexCount": 125,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0.00006136894226074218
+    }
+  },
+  "full-budget": {
+    "tile": "ff4a12187c37d535d2a0589dbfd667b0714586949673f4df5367b77f0e5f5b63",
+    "queries": "f8610ea9cc18681f2f47d6d45bcbaf736feb80bc06ac558281ea985999e7bb86",
+    "stats": {
+      "featureCount": 28,
+      "originalFeatureCount": 4883,
+      "encodedFeatureCount": 28,
+      "droppedFeatureCount": 4855,
+      "bbox": [
+        0,
+        0,
+        0.02197265625,
+        0.021972655711418845
+      ],
+      "layerNames": [
+        "roads",
+        "buildings",
+        "water",
+        "terrain",
+        "coastline",
+        "cliffs",
+        "landuse",
+        "railways",
+        "boundaries",
+        "pois",
+        "aip"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 111,
+      "simplifiedVertexCount": 84,
+      "droppedSmallFeatures": 9,
+      "simplificationTolerance": 8.58306884765625e-7
+    }
+  },
+  "labels-12": {
+    "tile": "84b37058a5676480ddba24af591ae7e539e028290600578b267cb1833f1e35e7",
+    "queries": "c6375317771d39a98304ebf815d5f75a89099940f9b03d371b7f39398154e2ef",
+    "stats": {
+      "featureCount": 15,
+      "originalFeatureCount": 15,
+      "encodedFeatureCount": 15,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.087890625,
+        0.08789059053082508
+      ],
+      "layerNames": [
+        "road_labels",
+        "aip_labels",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 15,
+      "simplifiedVertexCount": 15,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0.000055789947509765625
+    }
+  },
+  "labels-13": {
+    "tile": "4ceecfb9520c38228d6badc6ca803a3bf76d726211d4aa248a9c9b582a068494",
+    "queries": "04ca67bbf468b9da3d623884593e9a8ab642ac0bceb462fd94284369d116e786",
+    "stats": {
+      "featureCount": 68,
+      "originalFeatureCount": 3219,
+      "encodedFeatureCount": 68,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.0439453125,
+        0.04394530819135123
+      ],
+      "layerNames": [
+        "road_labels",
+        "aip_labels",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 68,
+      "simplifiedVertexCount": 68,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0.000016736984252929688
+    }
+  },
+  "labels-15": {
+    "tile": "e9b8ff6c869f97eb36a7c6b5879e127d71f9ddb16d64cba9b15567fa78567348",
+    "queries": "3e964c26b7af5596036924507f0a2eb363e2f95e3ad79ea9ae64772e655ed0b4",
+    "stats": {
+      "featureCount": 131,
+      "originalFeatureCount": 3874,
+      "encodedFeatureCount": 131,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.010986328125,
+        0.010986328057677354
+      ],
+      "layerNames": [
+        "road_labels",
+        "aip_labels",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 131,
+      "simplifiedVertexCount": 131,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 2.682209014892578e-7
+    }
+  },
+  "labels-17": {
+    "tile": "ff33e32923d85e19b8a3e905baf4e002acdfe9a3bb9f6a1b4393d5a384959d77",
+    "queries": "65fa4e9b2c35144a50bc8ae203a11fb438a145f45bbbcf5dc5ad1ca2d92b36db",
+    "stats": {
+      "featureCount": 245,
+      "originalFeatureCount": 4682,
+      "encodedFeatureCount": 245,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.00274658203125,
+        0.0027465820301980836
+      ],
+      "layerNames": [
+        "road_labels",
+        "aip_labels",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 245,
+      "simplifiedVertexCount": 245,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  },
+  "labels-18": {
+    "tile": "4058ce08ea89bcbb51c065267245a938c7ac608b46457aefd4675cecf1cf2fcc",
+    "queries": "c0f469061b4afc88bbc7a097258e52756aa784af749e51ca2e62a82f8aac8cdd",
+    "stats": {
+      "featureCount": 315,
+      "originalFeatureCount": 4682,
+      "encodedFeatureCount": 315,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.001373291015625,
+        0.0013732910154935106
+      ],
+      "layerNames": [
+        "road_labels",
+        "aip_labels",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 315,
+      "simplifiedVertexCount": 315,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  },
+  "aviation-aliases": {
+    "tile": "46bbb64d3e604ff3871b11542272ca1b3a07f61671e06fee1441da00da3ada31",
+    "queries": "e22556b198c9551a0955c1cd4a1540014e3dff07faccf40c62da73f79c5da732",
+    "stats": {
+      "featureCount": 70,
+      "originalFeatureCount": 70,
+      "encodedFeatureCount": 70,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.02197265625,
+        0.021972655711418845
+      ],
+      "layerNames": [
+        "aviation",
+        "aviation_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 154,
+      "simplifiedVertexCount": 154,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0.000004184246063232422
+    }
+  },
+  "poi-style": {
+    "tile": "8e585c0d6d085167c2893685aaa80b2c3de7c463f5f298cc94d675f5f1a6b128",
+    "queries": "2a90bf7fb85e0e0efca4be000d11c6231c87515807b8e9408bdd9343013885da",
+    "stats": {
+      "featureCount": 123,
+      "originalFeatureCount": 293,
+      "encodedFeatureCount": 123,
+      "droppedFeatureCount": 0,
+      "bbox": [
+        0,
+        0,
+        0.00274658203125,
+        0.0027465820301980836
+      ],
+      "layerNames": [
+        "pois",
+        "poi_labels"
+      ],
+      "emptyReason": "none",
+      "originalVertexCount": 123,
+      "simplifiedVertexCount": 123,
+      "droppedSmallFeatures": 0,
+      "simplificationTolerance": 0
+    }
+  }
+}

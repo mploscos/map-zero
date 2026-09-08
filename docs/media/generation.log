@@ -1,22 +1,22 @@
 $ node src/cli.js build data/madrid.osm.pbf --bbox -3.710,40.413,-3.696,40.422 --out generated/readme-demo.mapzero
 > Validating input and preparing output folder
 > Writing GeoPackage
-> Scanning OSM extract ./data/madrid.osm.pbf
+> Scanning OSM extract /home/marcos/Documentos/DEP/map-zero/data/madrid.osm.pbf
 > PBF scan: finding candidate ways and relations
-PBF scan: finding candidate ways and relations: 25% (19.8 MB/79.2 MB, 3,096,000 entities)
-PBF scan: finding candidate ways and relations: 50% (39.6 MB/79.2 MB, 7,368,000 entities)
-PBF scan: finding candidate ways and relations: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
+PBF scan: finding candidate ways and relations: 25% (19.8 MB/79.2 MB, 3,072,000 entities)
+PBF scan: finding candidate ways and relations: 50% (39.6 MB/79.2 MB, 7,328,000 entities)
+PBF scan: finding candidate ways and relations: 75% (59.4 MB/79.2 MB, 8,907,803 entities)
 PBF scan: finding candidate ways and relations: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
 > Stored 996575 candidate way rows and 14005 candidate relation rows
 > PBF scan: resolving relation member ways
-PBF scan: resolving relation member ways: 25% (19.8 MB/79.2 MB, 3,176,000 entities)
-PBF scan: resolving relation member ways: 50% (39.6 MB/79.2 MB, 7,344,000 entities)
+PBF scan: resolving relation member ways: 25% (19.8 MB/79.2 MB, 3,152,000 entities)
+PBF scan: resolving relation member ways: 50% (39.6 MB/79.2 MB, 7,296,000 entities)
 PBF scan: resolving relation member ways: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
 PBF scan: resolving relation member ways: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
 > Resolved 35025 relation member ways
 > PBF scan: loading referenced nodes and point features
-PBF scan: loading referenced nodes and point features: 25% (19.8 MB/79.2 MB, 3,136,000 entities)
-PBF scan: loading referenced nodes and point features: 50% (39.6 MB/79.2 MB, 7,216,000 entities)
+PBF scan: loading referenced nodes and point features: 25% (19.8 MB/79.2 MB, 3,144,000 entities)
+PBF scan: loading referenced nodes and point features: 50% (39.6 MB/79.2 MB, 7,248,000 entities)
 PBF scan: loading referenced nodes and point features: 75% (59.4 MB/79.2 MB, 8,899,803 entities)
 PBF scan: loading referenced nodes and point features: 100% (79.2 MB/79.2 MB, 9,846,813 entities)
 > Loaded 7286300 referenced nodes
@@ -30,7 +30,7 @@ Building relation geometries: 35% (5,000/14,005)
 Building relation geometries: 71% (10,000/14,005)
 Building relation geometries: 100% (14,005/14,005)
 > Writing manifest and style
-Built ./generated/readme-demo.mapzero
+Built /home/marcos/Documentos/DEP/map-zero/generated/readme-demo.mapzero
   roads: 1028
   buildings: 2008
   water: 8
@@ -42,15 +42,65 @@ Built ./generated/readme-demo.mapzero
   boundaries: 13
   pois: 3394
   aip: 0
-
 $ node src/cli.js pmtiles generated/readme-demo.mapzero --minzoom 8 --maxzoom 16 --workers 4
-
+Estimated tiles: 125
+Coverage bbox: -3.71,40.413,-3.696,40.422
+Coverage size: 0.014 x 0.009 degrees, ~1 km2
+Estimated tiles by zoom:
+  z8: 9
+  z9: 9
+  z10: 9
+  z11: 9
+  z12: 9
+  z13: 12
+  z14: 12
+  z15: 20
+  z16: 36
+Recommendation:
+  - City-scale exports are usually practical at z14-z16.
+z8: 1/9 tiles, 6.4 tiles/s, 1 written, 0 empty, avg 656 B, ETA 1s
+z8: 9/9 tiles, 41.5 tiles/s, 4 written, 5 empty, avg 744 B, ETA 0s
+z8: 9 tiles, 4 written, 5 empty, 41.1 tiles/s, avg 744 B
+z9: 1/9 tiles, 7.0 tiles/s, 1 written, 0 empty, avg 810 B, ETA 1s
+z9: 9/9 tiles, 37.3 tiles/s, 7 written, 2 empty, avg 956 B, ETA 0s
+z9: 9 tiles, 7 written, 2 empty, 37.0 tiles/s, avg 956 B
+z10: 1/9 tiles, 6.6 tiles/s, 1 written, 0 empty, avg 335 B, ETA 1s
+z10: 9/9 tiles, 36.6 tiles/s, 9 written, 0 empty, avg 804 B, ETA 0s
+z10: 9 tiles, 9 written, 0 empty, 36.3 tiles/s, avg 804 B
+z11: 1/9 tiles, 5.5 tiles/s, 1 written, 0 empty, avg 287 B, ETA 1s
+z11: 9/9 tiles, 30.0 tiles/s, 9 written, 0 empty, avg 790 B, ETA 0s
+z11: 9 tiles, 9 written, 0 empty, 29.9 tiles/s, avg 790 B
+z12: 1/9 tiles, 5.2 tiles/s, 1 written, 0 empty, avg 1.2 KB, ETA 2s
+z12: 9/9 tiles, 24.9 tiles/s, 9 written, 0 empty, avg 1.9 KB, ETA 0s
+z12: 9 tiles, 9 written, 0 empty, 24.8 tiles/s, avg 1.9 KB
+z13: 1/12 tiles, 5.1 tiles/s, 1 written, 0 empty, avg 765 B, ETA 2s
+z13: 12/12 tiles, 28.1 tiles/s, 12 written, 0 empty, avg 3.9 KB, ETA 0s
+z13: 12 tiles, 12 written, 0 empty, 28.0 tiles/s, avg 3.9 KB
+z14: 1/12 tiles, 5.0 tiles/s, 1 written, 0 empty, avg 891 B, ETA 2s
+z14: 12/12 tiles, 23.9 tiles/s, 12 written, 0 empty, avg 11.5 KB, ETA 0s
+z14: 12 tiles, 12 written, 0 empty, 23.8 tiles/s, avg 11.5 KB
+z15: 1/20 tiles, 5.5 tiles/s, 1 written, 0 empty, avg 676 B, ETA 3s
+z15: 20/20 tiles, 31.8 tiles/s, 20 written, 0 empty, avg 10.6 KB, ETA 0s
+z15: 20 tiles, 20 written, 0 empty, 31.7 tiles/s, avg 10.6 KB
+z16: 1/36 tiles, 5.0 tiles/s, 1 written, 0 empty, avg 684 B, ETA 7s
+z16: 36/36 tiles, 44.1 tiles/s, 36 written, 0 empty, avg 7.4 KB, ETA 0s
+z16: 36 tiles, 36 written, 0 empty, 44.1 tiles/s, avg 7.4 KB
+PMTiles size: 703 KB
+Exported /home/marcos/Documentos/DEP/map-zero/generated/readme-demo.mapzero/tiles.pmtiles
+  zooms: 8-16
+  estimated tiles: 125
+  written tiles: 118
+  skipped empty tiles: 7
+  size: 703 KB
 $ node src/cli.js 3dtiles generated/readme-demo.mapzero
-3D Tiles plan: buildings: 4 leaf tiles, 2,008 features
-3D Tiles: 4/4 leaves, 4 written, 0 empty
-3D Tiles size: 4.7 MB
-Exported ./generated/readme-demo.mapzero/3dtiles/buildings/tileset.json
-  leaves: 4
-  written tiles: 4
+3D Tiles plan: buildings: 2 leaf tiles, 2,008 features
+3D Tiles: 32/32 leaves, 32 written, 0 empty
+3D Tiles: 33/33 leaves, 33 written, 0 empty
+3D Tiles: 34/34 leaves, 34 written, 0 empty
+3D Tiles: 35/35 leaves, 35 written, 0 empty
+3D Tiles size: 8.1 MB
+Exported /home/marcos/Documentos/DEP/map-zero/generated/readme-demo.mapzero/3dtiles/context/tileset.json
+  leaves: 35
+  written tiles: 35
   skipped empty tiles: 0
-  size: 4.7 MB
+  size: 8.1 MB

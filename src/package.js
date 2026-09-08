@@ -90,8 +90,10 @@ async function collectPackageEntries(packageDir, manifest, options) {
     await addFile(pmtilesUrl);
   }
 
-  const tiles3dUrl = manifest.tiles3d?.format === '3dtiles' ? manifest.tiles3d.url : null;
-  if (typeof tiles3dUrl === 'string') {
+  const tiles3dUrls = manifest.tiles3d?.format === '3dtiles'
+    ? [...Object.values(manifest.tiles3d.tilesets ?? {}), manifest.tiles3d.url].filter(url => typeof url === 'string')
+    : [];
+  for (const tiles3dUrl of new Set(tiles3dUrls)) {
     const tiles3dDir = dirname(safePackageRelativePath(tiles3dUrl) ?? '');
     if (!tiles3dDir || tiles3dDir === '.') {
       throw new Error(`invalid 3D Tiles URL in manifest: ${tiles3dUrl}`);

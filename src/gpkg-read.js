@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 
 import { decodeGeoPackageGeometry } from './geometry-read.js';
+import { resolveManifestLayers } from './manifest.js';
 import { quoteIdentifier } from './utils.js';
 
 const LAYER_ALIASES = {
@@ -9,13 +10,7 @@ const LAYER_ALIASES = {
 };
 
 /**
- * @typedef {{
- *   id: string,
- *   type?: string,
- *   source?: string,
- *   table: string,
- *   style?: string
- * }} ManifestLayer
+ * @typedef {import('../packages/core/src/manifest.js').ManifestLayer & { style?: string }} ManifestLayer
  *
  * @typedef {{
  *   format?: string,
@@ -24,7 +19,7 @@ const LAYER_ALIASES = {
  *   bbox?: [number, number, number, number],
  *   data?: string,
  *   styles?: Record<string, string>,
- *   layers?: string[]
+ *   layers?: Array<string | import('../packages/core/src/manifest.js').ManifestLayerInput>
  * }} Manifest
  *
  * @typedef {Map<string, Map<string, Set<string>>>} HiddenFilters
@@ -40,7 +35,8 @@ const LAYER_ALIASES = {
  * @typedef {{
  *   all?: TilePropertyFilter[],
  *   any?: TilePropertyFilter[],
- *   minRtreeSpan?: number
+ *   minRtreeSpan?: number,
+ *   zoom?: number
  * }} TileQueryFilters
  */
 
@@ -52,10 +48,14 @@ const LAYER_ALIASES = {
  *   close: () => void,
  *   getInfo: (packageDir: string) => Record<string, unknown>,
  *   getLayers: () => Array<Record<string, unknown>>,
+ *   getLayerStats: () => Array<Record<string, unknown>>,
+ *   hasFeaturesInBbox: (layerId: string, bbox: [number, number, number, number]) => boolean,
+ *   iterateFeatureBounds: (layerId: string, zoom?: number) => Iterable<{minx: number, miny: number, maxx: number, maxy: number}>,
  *   getTileFeatures: (layerId: string, bbox: [number, number, number, number], filters?: TileQueryFilters) => Array<Record<string, unknown>>
  * }}
  */
 export function openGeoPackageReader(options) {
+  const manifestLayers = resolveManifestLayers(options.manifest).map((layer) => ({ ...layer, style: layer.id }));
   const db = new Database(options.gpkgPath, {
     readonly: true,
     fileMustExist: true
@@ -63,10 +63,8 @@ export function openGeoPackageReader(options) {
   configureReadPerformance(db);
   const statementCache = new Map();
 
-  const layerById = new Map();
-  for (const layerId of options.manifest.layers ?? []) {
-    const layer = manifestLayer(String(layerId));
-    layerById.set(layer.id, layer);
+  const layerById = new Map(manifestLayers.map((layer) => [layer.id, layer]));
+  for (const layer of manifestLayers) {
     const alias = LAYER_ALIASES[layer.id];
     if (alias && !layerById.has(alias)) {
       layerById.set(alias, layer);
@@ -75,11 +73,25 @@ export function openGeoPackageReader(options) {
 
   const tableContents = loadContents(db);
   const geometryColumns = loadGeometryColumns(db);
-  const layers = buildLayerMetadata(db, [...layerById.values()], tableContents, geometryColumns);
+  const layers = buildLayerMetadata(db, manifestLayers, tableContents, geometryColumns);
   const columnsByTable = new Map(layers.map((layer) => [
     String(layer.table),
     layer.exists ? loadTableColumns(db, String(layer.table)) : new Set()
   ]));
+  try {
+    for (const layer of layers) {
+      if (!layer.featureZoom) continue;
+      const columns = db.prepare(`PRAGMA table_info(${quoteIdentifier(String(layer.table))})`).all();
+      for (const name of Object.values(layer.featureZoom)) {
+        if (columns.find((column) => column.name === name)?.type.toUpperCase() !== 'INTEGER') {
+          throw new Error(`featureZoom column ${layer.table}.${name} must exist and have type INTEGER`);
+        }
+      }
+    }
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 
   return {
     close() {
@@ -107,6 +119,43 @@ export function openGeoPackageReader(options) {
       return layers;
     },
 
+    // Unfiltered persisted counts and index checks; no features are materialized.
+    getLayerStats() {
+      return layers.map((layer) => inspectLayer(db, layer));
+    },
+
+    // Conservative occupancy only: no property filters, geometry decoding or
+    // row materialization. False positives are allowed; empty means no source.
+    hasFeaturesInBbox(layerId, bbox) {
+      const { metadata } = getReadableLayer(layerId, layerById, layers);
+      const cacheKey = `occupancy:${metadata.rtree}`;
+      let statement = statementCache.get(cacheKey);
+      if (!statement) {
+        statement = db.prepare(`SELECT 1 FROM ${quoteIdentifier(String(metadata.rtree))}
+          WHERE minx <= ? AND maxx >= ? AND miny <= ? AND maxy >= ? LIMIT 1`);
+        statementCache.set(cacheKey, statement);
+      }
+      return Boolean(statement.get(bbox[2], bbox[0], bbox[3], bbox[1]));
+    },
+
+    // Streaming envelopes only; optional visibility uses the same SQL predicate
+    // as MVT reads. No geometry/property payloads enter a sparse tile plan.
+    *iterateFeatureBounds(layerId, zoom) {
+      const { layer, metadata } = getReadableLayer(layerId, layerById, layers);
+      const params = [], keys = ['bounds', layer.table];
+      const visibility = featureZoomSql(layer.featureZoom, zoom, params, keys);
+      const key = JSON.stringify(keys);
+      let statement = statementCache.get(key);
+      if (!statement) {
+        statement = db.prepare(`SELECT r.minx, r.miny, r.maxx, r.maxy
+          FROM ${quoteIdentifier(String(metadata.rtree))} r
+          JOIN ${quoteIdentifier(layer.table)} feature_table ON feature_table.rowid = r.id
+          WHERE 1 ${visibility}`);
+        statementCache.set(key, statement);
+      }
+      yield* statement.iterate(...params);
+    },
+
     getTileFeatures(layerId, bbox, filters = {}) {
       const { layer, metadata } = getReadableLayer(layerId, layerById, layers);
       const tableColumns = columnsByTable.get(layer.table) ?? new Set();
@@ -115,6 +164,8 @@ export function openGeoPackageReader(options) {
         tableColumns
       );
       const tileFilters = normalizeTileQueryFilters(filters, tableColumns);
+      tileFilters.featureZoom = layer.featureZoom;
+      tileFilters.zoom = filters.zoom;
       const rows = selectFeaturesWithBbox(
         db,
         layer.table,
@@ -130,18 +181,6 @@ export function openGeoPackageReader(options) {
         .map((row) => rowToFeature(row, String(metadata.geometryColumn)))
         .filter((feature) => feature.geometry !== null);
     }
-  };
-}
-
-/**
- * @param {string} layerId
- * @returns {ManifestLayer}
- */
-function manifestLayer(layerId) {
-  return {
-    id: layerId,
-    table: layerId,
-    style: layerId
   };
 }
 
@@ -252,7 +291,7 @@ function findRtree(db, table, geometryColumn) {
  * @param {string} rtree
  * @param {[number, number, number, number]} bbox
  * @param {Array<{ column: string, values: string[] }>} hiddenFilters
- * @param {{ all: TilePropertyFilter[], any: TilePropertyFilter[] }} tileFilters
+ * @param {{ all: TilePropertyFilter[], any: TilePropertyFilter[], minRtreeSpan?: number, zoom?: number, featureZoom?: {minColumn?: string, maxColumn?: string} }} tileFilters
  * @param {Map<string, Database.Statement>} statementCache
  * @returns {Record<string, unknown>[]}
  */
@@ -261,6 +300,7 @@ function selectFeaturesWithBbox(db, table, geometryColumn, rtree, bbox, hiddenFi
   const params = [maxX, minX, maxY, minY];
   let filterSql = '';
   const cacheKeyParts = [table, geometryColumn, rtree];
+  filterSql += featureZoomSql(tileFilters.featureZoom, tileFilters.zoom, params, cacheKeyParts);
 
   for (const filter of hiddenFilters) {
     if (filter.values.length === 0) {
@@ -321,6 +361,28 @@ function selectFeaturesWithBbox(db, table, geometryColumn, rtree, bbox, hiddenFi
   }
 
   return statement.all(...params);
+}
+
+/** Inclusive optional per-feature visibility; NULL denotes an unbounded side.
+ * Shared by decoded reads and the streaming envelope planner.
+ * @param {{minColumn?: string, maxColumn?: string} | undefined} fields
+ * @param {number | undefined} zoom
+ * @param {unknown[]} params
+ * @param {string[]} keys
+ */
+function featureZoomSql(fields, zoom, params, keys) {
+  if (zoom === undefined) return '';
+  if (!Number.isInteger(zoom) || zoom < 0) throw new Error('query zoom must be a non-negative integer');
+  let sql = '';
+  for (const [key, operator] of [['minColumn', '<='], ['maxColumn', '>=']]) {
+    const name = fields?.[key];
+    if (!name) continue;
+    const column = `feature_table.${quoteIdentifier(name)}`;
+    sql += ` AND (${column} IS NULL OR ${column} ${operator} ?)`;
+    params.push(zoom);
+    keys.push(`featureZoom:${key}:${name}`);
+  }
+  return sql;
 }
 
 /**
@@ -470,4 +532,39 @@ function httpError(statusCode, message) {
   const error = /** @type {Error & { statusCode: number }} */ (new Error(message));
   error.statusCode = statusCode;
   return error;
+}
+
+/**
+ * Inspect persisted feature counts and RTree structure/ID coverage. This does
+ * not decode geometries or verify each envelope against geometry coordinates.
+ * @param {Database.Database} db
+ * @param {Record<string, unknown>} layer
+ * @returns {Record<string, unknown>}
+ */
+function inspectLayer(db, layer) {
+  const table = quoteIdentifier(String(layer.table));
+  const featureCount = layer.exists ? db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count : null;
+  const result = { id: layer.id, table: layer.table, featureCount, rtree: {
+    table: layer.rtree, registered: false, entryCount: null, missingEntries: null,
+    orphanEntries: null, invalidBounds: null, integrity: null, verified: false
+  } };
+  if (!layer.exists || !layer.rtree) return result;
+  const rtree = quoteIdentifier(String(layer.rtree));
+  const primaryKeys = db.prepare(`PRAGMA table_info(${table})`).all().filter((column) => column.pk);
+  const extensionTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'gpkg_extensions'").get();
+  result.rtree.registered = Boolean(extensionTable && db.prepare(`
+    SELECT 1 FROM gpkg_extensions WHERE table_name = ? AND column_name = ? AND extension_name = 'gpkg_rtree_index'
+  `).get(layer.table, layer.geometryColumn));
+  result.rtree.entryCount = db.prepare(`SELECT COUNT(*) AS count FROM ${rtree}`).get().count;
+  const definition = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(layer.rtree);
+  if (!/USING\s+rtree\s*\(/i.test(definition?.sql ?? '') || primaryKeys.length !== 1) return result;
+  const key = quoteIdentifier(primaryKeys[0].name);
+  result.rtree.integrity = db.prepare('SELECT rtreecheck(?) AS result').get(layer.rtree).result;
+  result.rtree.missingEntries = db.prepare(`SELECT COUNT(*) AS count FROM ${table} f LEFT JOIN ${rtree} r ON f.${key} = r.id WHERE r.id IS NULL`).get().count;
+  result.rtree.orphanEntries = db.prepare(`SELECT COUNT(*) AS count FROM ${rtree} r LEFT JOIN ${table} f ON f.${key} = r.id WHERE f.${key} IS NULL`).get().count;
+  result.rtree.invalidBounds = db.prepare(`SELECT COUNT(*) AS count FROM ${rtree} WHERE minx > maxx OR miny > maxy`).get().count;
+  result.rtree.verified = result.rtree.registered && result.rtree.integrity === 'ok' &&
+    result.rtree.entryCount === featureCount && result.rtree.missingEntries === 0 &&
+    result.rtree.orphanEntries === 0 && result.rtree.invalidBounds === 0;
+  return result;
 }

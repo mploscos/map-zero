@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { createMapZeroServer } from '../src/server.js';
 
-const app = await createMapZeroServer({ packageDir: process.argv[2] ?? 'generated/readme-demo.mapzero' });
+const app = await createMapZeroServer({ packageDir: process.argv[2] ?? 'generated/bbox.mapzero' });
 const url = await app.listen({ host: '127.0.0.1', port: 0 });
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
@@ -22,8 +22,8 @@ try {
   for (const path of paths) {
     await page.goto(url + path, { timeout: 60000 });
     if (path.startsWith('/cesium')) {
-      await page.waitForFunction(() => globalThis.mapZeroController && Object.values(mapZeroController.tilesets).every((tileset) => tileset.tilesLoaded), null, { timeout: 60000 });
-      await page.waitForFunction(() => mapZeroController.vectorProvider.tileset.tilesLoaded && mapZeroController.vectorProvider.tileset.statistics.numberOfFeaturesLoaded > 0, null, { timeout: 60000 });
+      await page.waitForFunction(() => globalThis.mapZeroController && Object.values(mapZeroController.tilesets).every((tileset) => !tileset.show || tileset.tilesLoaded), null, { timeout: 60000 });
+
       await page.waitForFunction(() => mapZeroController.labelCollection.length > 0, null, { timeout: 30000 });
       console.log('Native labels:', await page.evaluate(() => mapZeroController.labelCollection.length));
       assert.ok(await page.evaluate(() => mapZeroController.labelCollection.length <= 150));
@@ -74,7 +74,7 @@ try {
     if (path.startsWith('/cesium')) {
       const remaining = await page.evaluate(() => {
         const labels = mapZeroController.labelCollection;
-        const expected = viewer.scene.primitives.length - 2 - new Set(Object.values(mapZeroController.tilesets)).size;
+        const expected = viewer.scene.primitives.length - 1 - new Set(Object.values(mapZeroController.tilesets)).size;
         mapZeroController.destroy();
         return { expected, actual: viewer.scene.primitives.length, labelsDestroyed: labels.isDestroyed() };
       });

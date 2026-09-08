@@ -1,8 +1,8 @@
 {
   "name": "@map-zero/cesium",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
-  "description": "Cesium integration helper for map-zero 3D Tiles packages.",
+  "description": "Static 3D Tiles maps and spatially streamed labels for Cesium, without a runtime map server.",
   "license": "MIT",
   "homepage": "https://github.com/mploscos/map-zero#readme",
   "repository": {
@@ -22,7 +22,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@map-zero/core": "0.4.0"
+    "@map-zero/core": "0.5.0"
   },
   "peerDependencies": {
     "cesium": "1.145.0"

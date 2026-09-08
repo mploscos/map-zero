@@ -1,10 +1,36 @@
 import { decodeGeoPackageGeometry } from '../geometry-read.js';
 import { quoteIdentifier } from '../utils.js';
+import { resolveManifestLayers } from '../manifest.js';
 
 const LAYER_ALIASES = {
   aviation: 'aip',
   aip: 'aviation'
 };
+
+/** RTree-backed source with half-open ownership by envelope centre. A feature
+ * crossing cells is emitted once, with its complete geometry. Content encoders
+ * never need to know SQL, storage columns, or deduplication rules.
+ */
+export function createOwnedFeatureSource(db, metadata, decorate = feature => feature) {
+  const where = `r.minx <= ? AND r.maxx >= ? AND r.miny <= ? AND r.maxy >= ?
+    AND (r.minx+r.maxx)/2 >= ? AND (r.minx+r.maxx)/2 < ?
+    AND (r.miny+r.maxy)/2 >= ? AND (r.miny+r.maxy)/2 < ?`;
+  const count = db.prepare(`SELECT count(*) n FROM ${quoteIdentifier(metadata.rtree)} r WHERE ${where}`);
+  const rows = db.prepare(`SELECT f.* FROM ${quoteIdentifier(metadata.table)} f
+    JOIN ${quoteIdentifier(metadata.rtree)} r ON f.rowid=r.id WHERE ${where} ORDER BY f.rowid`);
+  const params = ([w,s,e,n]) => [e,w,n,s,w,e,s,n];
+  return {
+    count: box => count.get(...params(box)).n,
+    *features(box) {
+      for (const row of rows.iterate(...params(box))) {
+        const feature = rowToFeature(row, metadata.geometryColumn);
+        if (!feature) continue;
+        feature.properties = Object.fromEntries(Object.entries(feature.properties).filter(([,value]) => !Buffer.isBuffer(value)));
+        yield decorate(feature);
+      }
+    }
+  };
+}
 
 /**
  * @typedef {{
@@ -23,15 +49,14 @@ const LAYER_ALIASES = {
  * @returns {LayerMetadata}
  */
 export function readLayerMetadata(db, manifest, layerId) {
-  const manifestLayer = Array.isArray(manifest.layers)
-    ? manifest.layers.find((layer) => layer === layerId) ??
-      manifest.layers.find((layer) => layer === LAYER_ALIASES[layerId])
-    : null;
+  const layers = resolveManifestLayers(manifest);
+  const manifestLayer = layers.find((layer) => layer.id === layerId) ??
+    layers.find((layer) => layer.id === LAYER_ALIASES[layerId]);
   if (!manifestLayer) {
     throw new Error(`manifest does not contain layer: ${layerId}`);
   }
 
-  const table = String(manifestLayer);
+  const table = manifestLayer.table;
   const geometry = db.prepare(`
     SELECT column_name
     FROM gpkg_geometry_columns
@@ -63,6 +88,7 @@ export function readLayerMetadata(db, manifest, layerId) {
     : /** @type {[number, number, number, number]} */ (fallback);
 
   return {
+    ...manifestLayer,
     id: layerId,
     table,
     geometryColumn,
