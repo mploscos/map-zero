@@ -11,3 +11,17 @@ const layers = resolveManifestLayers({
 ```
 
 See the [custom data guide](https://github.com/mploscos/map-zero/blob/main/docs/custom-data.md) for storage schemas, manifest descriptors and a complete GeoPackage/PMTiles example. The Node writer and exporter are provided by the `map-zero` package.
+
+Application-facing AIP catalogs use the renderer-independent core contract:
+
+```js
+import {
+  AIP_AIRPORT_CATALOG_FORMAT,
+  createAipAirportCatalog
+} from '@map-zero/core/aip.js';
+```
+
+The builder can feed it raw OSM AIP features or normalized `airports` and
+`runways` features from sources such as ARINC 424. Applications consume the
+generated JSON as an ordinary static resource; Core does not require or own a
+runtime map server.

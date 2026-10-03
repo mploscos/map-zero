@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { findGeofabrikExtract, findGeofabrikExtracts } from '../src/from-bbox.js';
+import {
+  findGeofabrikExtract,
+  findGeofabrikExtractCandidates,
+  findGeofabrikExtracts,
+  findGeofabrikExtractsById
+} from '../src/from-bbox.js';
 
 test('findGeofabrikExtract picks the smallest extract that contains the bbox', async () => {
   const provider = await findGeofabrikExtract([-3.8, 40.35, -3.6, 40.5], {
@@ -29,7 +34,7 @@ test('findGeofabrikExtract rejects bboxes outside all extracts', async () => {
         extract('small', 'Small', [-1, -1, 1, 1])
       ])
     }),
-    /no Geofabrik extract fully contains bbox/
+    /no single Geofabrik extract fully contains bbox/
   );
 });
 
@@ -60,6 +65,62 @@ test('findGeofabrikExtract can reuse a cached broader valid extract', async () =
 
   assert.equal(provider.id, 'large');
   assert.equal(provider.cached, true);
+});
+
+test('antimeridian extracts do not cover the opposite side of the world', async () => {
+  await assert.rejects(
+    async () => findGeofabrikExtract([-18.3, 27.5, 4.5, 43.9], {
+      cacheDir: await tempCacheDir(),
+      indexUrl: geofabrikIndexUrl([
+        extractWithGeometry('us', 'United States', {
+          type: 'Polygon',
+          coordinates: [[
+            [170, 15], [-170, 15], [-170, 73], [170, 73], [170, 15]
+          ]]
+        })
+      ])
+    }),
+    /no single Geofabrik extract fully contains bbox/
+  );
+});
+
+test('explicit extracts support discontinuous regions', async () => {
+  const providers = await findGeofabrikExtractsById(
+    [-18.3, 27.5, 4.5, 43.9],
+    ['spain', 'canary-islands'],
+    {
+      cacheDir: await tempCacheDir(),
+      indexUrl: geofabrikIndexUrl([
+        extract('spain', 'Spain', [-9.8, 35.2, 5.1, 44.2]),
+        extract('canary-islands', 'Canary Islands', [-18.9, 26.3, -12.4, 30.3])
+      ])
+    }
+  );
+
+  assert.deepEqual(providers.map((provider) => provider.id), ['spain', 'canary-islands']);
+});
+
+test('extract discovery lists geographic candidates without antimeridian false positives', async () => {
+  const candidates = await findGeofabrikExtractCandidates([-18.3, 27.5, 4.5, 43.9], {
+    cacheDir: await tempCacheDir(),
+    indexUrl: geofabrikIndexUrl([
+      extract('europe', 'Europe', [-30, 25, 45, 72], undefined, [], null),
+      extract('africa', 'Africa', [-20, -36, 52, 38], undefined, [], null),
+      extract('spain', 'Spain', [-9.8, 35.2, 5.1, 44.2], undefined, ['ES'], 'europe'),
+      extract('portugal', 'Portugal', [-10, 36, -6, 42.2], undefined, ['PT'], 'europe'),
+      extract('canary-islands', 'Canary Islands', [-18.9, 26.3, -12.4, 30.3], undefined, [], 'africa'),
+      extractWithGeometry('us', 'United States', {
+        type: 'Polygon',
+        coordinates: [[[170, 15], [-170, 15], [-170, 73], [170, 73], [170, 15]]]
+      })
+    ])
+  });
+
+  assert.deepEqual(candidates.map((candidate) => candidate.id), [
+    'portugal',
+    'canary-islands',
+    'spain'
+  ]);
 });
 
 async function tempCacheDir() {
@@ -93,5 +154,17 @@ function extract(id, name, bbox, fileName = `${id}.osm.pbf`, adminCodes = ['XX-T
         [minLon, minLat]
       ]]
     }
+  };
+}
+
+function extractWithGeometry(id, name, geometry) {
+  return {
+    type: 'Feature',
+    properties: {
+      id,
+      name,
+      urls: { pbf: `https://example.test/${id}.osm.pbf` }
+    },
+    geometry
   };
 }

@@ -4,8 +4,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
-import { writeGeoPackage } from 'map-zero/gpkg';
-import { openGeoPackageReader } from 'map-zero/gpkg-read';
+import { writeGeoPackage } from '@map-zero/cli/gpkg';
+import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
 
 const bbox = [-1, -1, 1, 1];
 const schema = { id: 'survey data', geometryType: 'POINT', columns: { id: 'TEXT' } };

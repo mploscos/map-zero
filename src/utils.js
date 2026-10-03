@@ -1,5 +1,7 @@
 import { basename, extname } from 'node:path';
 
+export { geometryBbox, pointInRing } from '../packages/core/src/geometry.js';
+
 /**
  * Parse and validate a bbox string.
  *
@@ -91,36 +93,6 @@ export function bboxIntersects(a, b) {
 }
 
 /**
- * Calculate a bbox for a GeoJSON-like geometry.
- *
- * @param {{ type: string, coordinates: unknown }} geometry
- * @returns {[number, number, number, number] | null}
- */
-export function geometryBbox(geometry) {
-  /** @type {[number, number, number, number] | null} */
-  let bbox = null;
-
-  walkCoordinates(geometry.coordinates, (coordinate) => {
-    const [lon, lat] = coordinate;
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
-      return;
-    }
-
-    if (bbox === null) {
-      bbox = [lon, lat, lon, lat];
-      return;
-    }
-
-    bbox[0] = Math.min(bbox[0], lon);
-    bbox[1] = Math.min(bbox[1], lat);
-    bbox[2] = Math.max(bbox[2], lon);
-    bbox[3] = Math.max(bbox[3], lat);
-  });
-
-  return bbox;
-}
-
-/**
  * Remove consecutive duplicate coordinates from a line or ring.
  *
  * @param {Array<[number, number]>} coordinates
@@ -163,30 +135,6 @@ export function closeRing(coordinates) {
 }
 
 /**
- * Check whether a point is inside a polygon ring.
- *
- * @param {[number, number]} point
- * @param {Array<[number, number]>} ring
- * @returns {boolean}
- */
-export function pointInRing(point, ring) {
-  const [x, y] = point;
-  let inside = false;
-
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-
-    if (intersects) {
-      inside = !inside;
-    }
-  }
-
-  return inside;
-}
-
-/**
  * Safely quote a SQLite identifier.
  *
  * @param {string} identifier
@@ -194,29 +142,4 @@ export function pointInRing(point, ring) {
  */
 export function quoteIdentifier(identifier) {
   return `"${String(identifier).replaceAll('"', '""')}"`;
-}
-
-/**
- * Visit all [lon, lat] coordinates in a GeoJSON-like coordinate tree.
- *
- * @param {unknown} value
- * @param {(coordinate: [number, number]) => void} visitor
- */
-function walkCoordinates(value, visitor) {
-  if (!Array.isArray(value)) {
-    return;
-  }
-
-  if (
-    value.length >= 2 &&
-    typeof value[0] === 'number' &&
-    typeof value[1] === 'number'
-  ) {
-    visitor(/** @type {[number, number]} */ (value));
-    return;
-  }
-
-  for (const child of value) {
-    walkCoordinates(child, visitor);
-  }
 }

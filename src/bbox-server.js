@@ -3,12 +3,12 @@ import { resolve } from 'node:path';
 
 import Fastify from 'fastify';
 
-import { createPackageFromBbox } from './from-bbox.js';
+import { createAirportCatalogFromBbox, createPackageFromBbox } from './from-bbox.js';
 import { LAYER_ALIASES, SUPPORTED_LAYERS } from './layers.js';
 import { parseBbox, parseLayerList } from './utils.js';
 
 /**
- * Serve an OpenLayers bbox builder that starts local map-zero generation jobs.
+ * Serve an OpenLayers bbox tool for map packages and airport catalogs.
  *
  * @param {{
  *   host?: string,
@@ -52,6 +52,7 @@ export async function serveBboxBuilder(options = {}) {
       updatedAt: new Date().toISOString(),
       logs: [],
       options: {
+        kind: buildOptions.kind,
         bbox: buildOptions.bbox,
         out: buildOptions.out,
         layers: buildOptions.layers,
@@ -92,7 +93,10 @@ function runBuildJob(job, options) {
     job.updatedAt = new Date().toISOString();
   };
 
-  createPackageFromBbox({
+  const build = options.kind === 'airports'
+    ? createAirportCatalogFromBbox
+    : createPackageFromBbox;
+  build({
     ...options,
     onStage: log,
     onBuildProgress(progress) {
@@ -109,25 +113,43 @@ function runBuildJob(job, options) {
     }
   }).then((result) => {
     job.status = 'completed';
-    job.result = {
-      outDir: result.outDir,
-      source: result.source,
-      sources: result.sources,
-      counts: result.counts,
-      pmtiles: result.pmtiles ? {
-        outPath: result.pmtiles.outPath,
-        outputBytes: result.pmtiles.outputBytes
-      } : null,
-      tiles3d: result.tiles3d ? {
-        tilesetPath: result.tiles3d.tilesetPath,
-        outputBytes: result.tiles3d.outputBytes
-      } : null,
-      zip: result.zip ? {
-        outPath: result.zip.outPath,
-        outputBytes: result.zip.outputBytes
-      } : null
-    };
-    log(`Built ${result.outDir}`);
+    if (options.kind === 'airports') {
+      job.result = {
+        outPath: result.outPath,
+        source: result.source,
+        sources: result.sources,
+        summary: result.summary
+      };
+      log(`AIP catalog: ${result.summary.airports} airports, ${result.summary.runwayDirections} runway directions`);
+      log(`Generated ${result.outPath}`);
+    } else {
+      job.result = {
+        outDir: result.outDir,
+        source: result.source,
+        sources: result.sources,
+        counts: result.counts,
+        aip: result.aip ? {
+          url: result.aip.url,
+          summary: result.aip.summary
+        } : null,
+        pmtiles: result.pmtiles ? {
+          outPath: result.pmtiles.outPath,
+          outputBytes: result.pmtiles.outputBytes
+        } : null,
+        tiles3d: result.tiles3d ? {
+          tilesetPath: result.tiles3d.tilesetPath,
+          outputBytes: result.tiles3d.outputBytes
+        } : null,
+        zip: result.zip ? {
+          outPath: result.zip.outPath,
+          outputBytes: result.zip.outputBytes
+        } : null
+      };
+      if (result.aip) {
+        log(`AIP catalog: ${result.aip.summary.airports} airports, ${result.aip.summary.runwayDirections} runway directions`);
+      }
+      log(`Built ${result.outDir}`);
+    }
   }).catch((error) => {
     job.status = 'failed';
     job.error = error instanceof Error ? error.message : String(error);
@@ -210,20 +232,26 @@ function formatBytes(value) {
 
 function parseBuildRequest(body, defaults) {
   const input = body && typeof body === 'object' ? body : {};
+  const kind = input.kind === 'airports' ? 'airports' : 'map';
   const bbox = Array.isArray(input.bbox)
     ? parseBbox(input.bbox.join(','))
     : parseBbox(String(input.bbox ?? ''));
-  const outName = safeOutputName(String(input.out ?? 'bbox.mapzero'));
-  const layers = Array.isArray(input.layers)
-    ? parseLayerList(input.layers.join(','), SUPPORTED_LAYERS, LAYER_ALIASES)
-    : parseLayerList(String(input.layers || SUPPORTED_LAYERS.join(',')), SUPPORTED_LAYERS, LAYER_ALIASES);
+  const outName = kind === 'airports'
+    ? safeAirportOutputName(String(input.out ?? 'airports.json'))
+    : safeOutputName(String(input.out ?? 'bbox.mapzero'));
+  const layers = kind === 'airports'
+    ? ['aip']
+    : Array.isArray(input.layers)
+      ? parseLayerList(input.layers.join(','), SUPPORTED_LAYERS, LAYER_ALIASES)
+      : parseLayerList(String(input.layers || SUPPORTED_LAYERS.join(',')), SUPPORTED_LAYERS, LAYER_ALIASES);
   const minZoom = integerInRange(input.minZoom, 0, 22, 8);
   const maxZoom = integerInRange(input.maxZoom, 0, 22, 16);
-  if (minZoom > maxZoom) {
+  if (kind === 'map' && minZoom > maxZoom) {
     throw new Error('minZoom must be smaller than or equal to maxZoom');
   }
 
   return {
+    kind,
     bbox,
     out: resolve(defaults.outputRoot, outName),
     layers,
@@ -232,9 +260,9 @@ function parseBuildRequest(body, defaults) {
     workers: integerInRange(input.workers, 1, 64, 1),
     forcePmtiles: Boolean(input.forcePmtiles),
     forceDownload: Boolean(input.forceDownload),
-    pmtiles: input.pmtiles !== false,
-    tiles3d: input.tiles3d !== false,
-    zip: input.zip !== false,
+    pmtiles: kind === 'map' && input.pmtiles !== false,
+    tiles3d: kind === 'map' && input.tiles3d !== false,
+    zip: kind === 'map' && input.zip !== false,
     includeGpkg: Boolean(input.includeGpkg),
     cacheDir: typeof input.cacheDir === 'string' && input.cacheDir.trim()
       ? input.cacheDir.trim()
@@ -243,6 +271,15 @@ function parseBuildRequest(body, defaults) {
       ? input.providerIndexUrl.trim()
       : defaults.providerIndexUrl
   };
+}
+
+function safeAirportOutputName(value) {
+  const trimmed = value.trim() || 'airports.json';
+  const normalized = trimmed.endsWith('.json') ? trimmed : `${trimmed}.json`;
+  if (normalized.includes('\0') || normalized.includes('/') || normalized.includes('\\')) {
+    throw new Error('airport catalog output must be a file name');
+  }
+  return normalized;
 }
 
 function safeOutputName(value) {
@@ -277,7 +314,7 @@ function createBboxBuilderHtml() {
       #map { min-width: 0; min-height: 0; }
       h1 { margin: 0 0 16px; font-size: 18px; font-weight: 650; }
       label { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; color: #c8d0d8; }
-      input, button { box-sizing: border-box; width: 100%; border: 1px solid #394553; border-radius: 6px; background: #0f1318; color: #eef2f5; padding: 8px 10px; font: inherit; }
+      input, select, button { box-sizing: border-box; width: 100%; border: 1px solid #394553; border-radius: 6px; background: #0f1318; color: #eef2f5; padding: 8px 10px; font: inherit; }
       button { cursor: pointer; background: #1f6feb; border-color: #2f81f7; font-weight: 650; }
       button.secondary { background: #252c35; border-color: #394553; }
       button:disabled { cursor: default; opacity: 0.55; }
@@ -285,6 +322,7 @@ function createBboxBuilderHtml() {
       .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 8px 0 12px; }
       .checks label { display: flex; align-items: center; gap: 7px; margin: 0; }
       .checks input { width: 15px; height: 15px; padding: 0; }
+      .hint { margin: -4px 0 12px; color: #82909e; font-size: 12px; line-height: 1.4; }
       #status { margin-top: 14px; color: #aab6c2; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
       @media (max-width: 760px) { #app { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } #panel { max-height: 48vh; border-right: 0; border-bottom: 1px solid #2b3440; } }
     </style>
@@ -298,17 +336,26 @@ function createBboxBuilderHtml() {
         <h1>map-zero bbox builder</h1>
         <button id="drawButton" class="secondary">Draw bbox</button>
         <label>bbox<input id="bboxInput" placeholder="-3.9,40.3,-3.5,40.6"></label>
+        <label>output type
+          <select id="outputTypeInput">
+            <option value="map">Map package</option>
+            <option value="airports">Airport catalog</option>
+          </select>
+        </label>
         <label>output<input id="outInput" value="bbox.mapzero"></label>
-        <div class="grid">
-          <label>min zoom<input id="minZoomInput" type="number" min="0" max="22" value="8"></label>
-          <label>max zoom<input id="maxZoomInput" type="number" min="0" max="22" value="16"></label>
-        </div>
-        <div id="layerChecks" class="checks"></div>
-        <div class="checks">
-          <label><input id="pmtilesInput" type="checkbox" checked>PMTiles</label>
-          <label><input id="tiles3dInput" type="checkbox" checked>3D Tiles</label>
-          <label><input id="zipInput" type="checkbox" checked>ZIP</label>
-          <label><input id="includeGpkgInput" type="checkbox">GPKG in ZIP</label>
+        <div id="mapOptions">
+          <div class="grid">
+            <label>min zoom<input id="minZoomInput" type="number" min="0" max="22" value="8"></label>
+            <label>max zoom<input id="maxZoomInput" type="number" min="0" max="22" value="16"></label>
+          </div>
+          <div id="layerChecks" class="checks"></div>
+          <p class="hint">The AIP layer also generates a portable airport and runway catalog.</p>
+          <div class="checks">
+            <label><input id="pmtilesInput" type="checkbox" checked>PMTiles</label>
+            <label><input id="tiles3dInput" type="checkbox" checked>3D Tiles</label>
+            <label><input id="zipInput" type="checkbox" checked>ZIP</label>
+            <label><input id="includeGpkgInput" type="checkbox">GPKG in ZIP</label>
+          </div>
         </div>
         <button id="buildButton">Build map-zero</button>
         <div id="status">Draw a rectangle or paste a bbox.</div>
@@ -327,7 +374,9 @@ function createBboxBuilderHtml() {
       import {fromLonLat, transformExtent} from 'ol/proj.js';
 
       const bboxInput = document.getElementById('bboxInput');
+      const outputTypeInput = document.getElementById('outputTypeInput');
       const outInput = document.getElementById('outInput');
+      const mapOptions = document.getElementById('mapOptions');
       const buildButton = document.getElementById('buildButton');
       const drawButton = document.getElementById('drawButton');
       const statusEl = document.getElementById('status');
@@ -365,6 +414,23 @@ function createBboxBuilderHtml() {
 
       drawButton.addEventListener('click', startDraw);
       buildButton.addEventListener('click', startBuild);
+      outputTypeInput.addEventListener('change', syncOutputType);
+
+      const outputNames = {
+        map: 'bbox.mapzero',
+        airports: 'airports.json'
+      };
+      let outputType = outputTypeInput.value;
+
+      function syncOutputType() {
+        outputNames[outputType] = outInput.value;
+        outputType = outputTypeInput.value;
+        outInput.value = outputNames[outputType];
+        mapOptions.hidden = outputType === 'airports';
+        buildButton.textContent = outputType === 'airports'
+          ? 'Generate airports.json'
+          : 'Build map-zero';
+      }
 
       function startDraw() {
         if (draw) map.removeInteraction(draw);
@@ -395,6 +461,7 @@ function createBboxBuilderHtml() {
         buildButton.disabled = true;
         statusEl.textContent = 'Starting build job...';
         const payload = {
+          kind: outputTypeInput.value,
           bbox: bboxInput.value,
           out: outInput.value,
           layers: [...layerChecks.querySelectorAll('input:checked')].map((input) => input.value),

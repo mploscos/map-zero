@@ -4,8 +4,8 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createSparseTilePlan } from '../src/pmtiles-plan.js';
-import { writeGeoPackage } from 'map-zero/gpkg';
-import { exportPmtiles } from 'map-zero/export-pmtiles';
+import { writeGeoPackage } from '@map-zero/cli/gpkg';
+import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
 
 const coverage = { minX: 0, minY: 0, maxX: 99, maxY: 99, tileCount: 10000 };
 const asRange = ([minX, minY, maxX, maxY]) => ({ minX, minY, maxX, maxY, tileCount: (maxX-minX+1)*(maxY-minY+1) });

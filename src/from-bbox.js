@@ -1,7 +1,7 @@
 import { createWriteStream, promises as fs } from 'node:fs';
 import { execFile } from 'node:child_process';
-import { homedir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { once } from 'node:events';
 import { promisify } from 'node:util';
 
@@ -35,6 +35,7 @@ const execFileAsync = promisify(execFile);
  *   debugBuild?: boolean,
  *   cacheDir?: string,
  *   providerIndexUrl?: string,
+ *   extracts?: string[],
  *   forceDownload?: boolean,
  *   onStage?: (message: string) => void,
  *   onBuildProgress?: Parameters<typeof buildPackage>[0]['onProgress'],
@@ -46,6 +47,7 @@ const execFileAsync = promisify(execFile);
  *   source: { name: string, id: string, url: string, path: string },
  *   sources: Array<{ name: string, id: string, url: string, path: string }>,
  *   counts: Record<string, number>,
+ *   aip?: Awaited<ReturnType<typeof buildPackage>>['aip'],
  *   pmtiles?: Awaited<ReturnType<typeof exportPmtiles>>,
  *   tiles3d?: Awaited<ReturnType<typeof export3dTiles>>,
  *   zip?: Awaited<ReturnType<typeof packageMapZero>>
@@ -55,10 +57,10 @@ export async function createPackageFromBbox(options) {
   const bbox = options.bbox;
   const outDir = resolve(options.out);
   const cacheDir = resolve(options.cacheDir ?? join(homedir(), '.cache', 'map-zero', 'osm'));
-  const providers = await findGeofabrikExtracts(bbox, {
-    cacheDir,
-    indexUrl: options.providerIndexUrl
-  });
+  const providerOptions = { cacheDir, indexUrl: options.providerIndexUrl };
+  const providers = options.extracts?.length
+    ? await findGeofabrikExtractsById(bbox, options.extracts, providerOptions)
+    : await findGeofabrikExtracts(bbox, providerOptions);
 
   options.onStage?.(`Using ${providers.length} OSM extract${providers.length === 1 ? '' : 's'}: ${providers.map((provider) => provider.id).join(', ')}`);
   const sources = [];
@@ -134,10 +136,56 @@ export async function createPackageFromBbox(options) {
       path: source.path
     })),
     counts: build.counts,
+    aip: build.aip,
     pmtiles,
     tiles3d,
     zip
   };
+}
+
+/**
+ * Generate one standalone airport/runway catalog for a bbox. The temporary
+ * GeoPackage is an implementation detail and is removed before returning.
+ *
+ * @param {{
+ *   bbox: [number, number, number, number],
+ *   out: string,
+ *   batchSize?: number,
+ *   cacheDir?: string,
+ *   providerIndexUrl?: string,
+ *   extracts?: string[],
+ *   forceDownload?: boolean,
+ *   onStage?: (message: string) => void,
+ *   onBuildProgress?: Parameters<typeof buildPackage>[0]['onProgress']
+ * }} options
+ */
+export async function createAirportCatalogFromBbox(options) {
+  const workDir = await fs.mkdtemp(join(tmpdir(), 'map-zero-airports-'));
+  try {
+    const result = await createPackageFromBbox({
+      ...options,
+      out: join(workDir, 'source.mapzero'),
+      layers: ['aip'],
+      pmtiles: false,
+      tiles3d: false,
+      zip: false
+    });
+    if (!result.aip) {
+      throw new Error('AIP airport catalog was not generated');
+    }
+
+    const outPath = resolve(options.out);
+    await fs.mkdir(dirname(outPath), { recursive: true });
+    await fs.copyFile(result.aip.outPath, outPath);
+    return {
+      outPath,
+      source: result.source,
+      sources: result.sources,
+      summary: result.aip.summary
+    };
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -165,7 +213,57 @@ export async function findGeofabrikExtracts(bbox, options) {
 
   const selected = await selectGeofabrikCandidates(candidates, normalizedFeatures, bbox, options.cacheDir);
   if (selected.length === 0) {
-    throw new Error(`no Geofabrik extract fully contains bbox ${formatBbox(bbox)}`);
+    const intersecting = geofabrikExtractCandidates(normalizedFeatures, bbox);
+    const hint = intersecting.length > 0
+      ? ` Intersecting extracts: ${intersecting.map((feature) => feature.id).join(', ')}.` +
+        ` Inspect them with "map-zero extracts --bbox=${formatBbox(bbox)}" and select with --extracts.`
+      : '';
+    throw new Error(`no single Geofabrik extract fully contains bbox ${formatBbox(bbox)}.${hint}`);
+  }
+  return selected;
+}
+
+/**
+ * List human-scale Geofabrik extracts that intersect a bbox.
+ *
+ * @param {[number, number, number, number]} bbox
+ * @param {{ cacheDir?: string, indexUrl?: string }} options
+ */
+export async function findGeofabrikExtractCandidates(bbox, options) {
+  const cacheDir = resolve(options.cacheDir ?? join(homedir(), '.cache', 'map-zero', 'osm'));
+  const index = await loadGeofabrikIndex(cacheDir, options.indexUrl ?? GEOFABRIK_INDEX_URL);
+  const features = (Array.isArray(index.features) ? index.features : [])
+    .map(normalizeGeofabrikFeature)
+    .filter(Boolean);
+  return Promise.all(
+    geofabrikExtractCandidates(features, bbox)
+      .map((feature) => annotateCachedExtract(feature, cacheDir))
+  );
+}
+
+/**
+ * Resolve an explicit set of Geofabrik extracts for discontinuous regions.
+ *
+ * @param {[number, number, number, number]} bbox
+ * @param {string[]} ids
+ * @param {{ cacheDir: string, indexUrl?: string }} options
+ */
+export async function findGeofabrikExtractsById(bbox, ids, options) {
+  const index = await loadGeofabrikIndex(options.cacheDir, options.indexUrl ?? GEOFABRIK_INDEX_URL);
+  const features = (Array.isArray(index.features) ? index.features : [])
+    .map(normalizeGeofabrikFeature)
+    .filter(Boolean);
+  const byId = new Map(features.map((feature) => [feature.id, feature]));
+  const selected = [];
+  for (const id of new Set(ids)) {
+    const feature = byId.get(id);
+    if (!feature) {
+      throw new Error(`unknown Geofabrik extract: ${id}`);
+    }
+    if (!bboxIntersectsBbox(bbox, feature.bbox)) {
+      throw new Error(`Geofabrik extract ${id} does not intersect bbox ${formatBbox(bbox)}`);
+    }
+    selected.push(await annotateCachedExtract(feature, options.cacheDir));
   }
   return selected;
 }
@@ -284,6 +382,28 @@ function boundarySafeCandidate(candidates, features, bbox, selected) {
   }
 
   return candidates.find((candidate) => !candidate.adminCodes?.length) ?? selected;
+}
+
+function geofabrikExtractCandidates(features, bbox) {
+  const rootIds = new Set(features.filter((feature) => !feature.parent).map((feature) => feature.id));
+  const intersecting = features.filter((feature) => geometryIntersectsBbox(feature.geometry, bbox));
+  const regional = intersecting.filter((feature) => feature.parent && rootIds.has(feature.parent));
+  return (regional.length > 0 ? regional : intersecting)
+    .sort((a, b) => featureArea(a) - featureArea(b));
+}
+
+function geometryIntersectsBbox(geometry, bbox) {
+  if (bboxSamplePoints(bbox).some((point) => pointInGeometry(point, geometry))) {
+    return true;
+  }
+  const points = [];
+  collectGeometryPoints(geometry, points);
+  return points.some((point) => pointInsideBbox(point, bbox));
+}
+
+function pointInsideBbox(point, bbox) {
+  return point[0] >= bbox[0] && point[0] <= bbox[2] &&
+    point[1] >= bbox[1] && point[1] <= bbox[3];
 }
 
 async function downloadExtract(provider, options) {
@@ -451,14 +571,17 @@ function pointInPolygon(point, rings) {
 }
 
 function pointInRing(point, ring) {
+  const unwrapped = unwrapRing(ring);
+  if (unwrapped.length === 0) return false;
   let inside = false;
-  const x = point[0];
+  const center = unwrapped.reduce((total, coordinate) => total + coordinate[0], 0) / unwrapped.length;
+  let x = point[0];
+  while (x - center > 180) x -= 360;
+  while (x - center < -180) x += 360;
   const y = point[1];
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const xi = Number(ring[i]?.[0]);
-    const yi = Number(ring[i]?.[1]);
-    const xj = Number(ring[j]?.[0]);
-    const yj = Number(ring[j]?.[1]);
+  for (let i = 0, j = unwrapped.length - 1; i < unwrapped.length; j = i, i += 1) {
+    const [xi, yi] = unwrapped[i];
+    const [xj, yj] = unwrapped[j];
     if (pointOnSegment(x, y, xi, yi, xj, yj)) {
       return true;
     }
@@ -469,12 +592,31 @@ function pointInRing(point, ring) {
   return inside;
 }
 
+function unwrapRing(ring) {
+  const unwrapped = [];
+  for (const coordinate of ring ?? []) {
+    let longitude = Number(coordinate?.[0]);
+    const latitude = Number(coordinate?.[1]);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) continue;
+    const previous = unwrapped.at(-1)?.[0];
+    if (previous !== undefined) {
+      while (longitude - previous > 180) longitude -= 360;
+      while (longitude - previous < -180) longitude += 360;
+    }
+    unwrapped.push([longitude, latitude]);
+  }
+  return unwrapped;
+}
+
 function pointOnSegment(x, y, x1, y1, x2, y2) {
+  const lengthSquared = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+  if (lengthSquared === 0) {
+    return (x - x1) ** 2 + (y - y1) ** 2 <= 1e-20;
+  }
   const cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
   if (Math.abs(cross) > 1e-10) return false;
   const dot = (x - x1) * (x2 - x1) + (y - y1) * (y2 - y1);
   if (dot < 0) return false;
-  const lengthSquared = (x2 - x1) ** 2 + (y2 - y1) ** 2;
   return dot <= lengthSquared;
 }
 

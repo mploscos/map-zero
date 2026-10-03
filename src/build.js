@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { resolve, join } from 'node:path';
 
+import { exportAipAirportCatalog } from './aip.js';
 import { createManifest } from './manifest.js';
 import { normalizeLayerId } from './layers.js';
 import { buildOsmGeoPackage, inferOsmBbox } from './osm.js';
@@ -29,7 +30,11 @@ import { createNeonDarkStyle } from './style.js';
  *     totalItems?: number
  *   }) => void
  * }} options
- * @returns {Promise<{ outDir: string, counts: Record<string, number> }>}
+ * @returns {Promise<{
+ *   outDir: string,
+ *   counts: Record<string, number>,
+ *   aip?: Awaited<ReturnType<typeof exportAipAirportCatalog>>
+ * }>}
  */
 export async function buildPackage(options) {
   const sources = (Array.isArray(options.source) ? options.source : [options.source]).map((source) => resolve(source));
@@ -83,9 +88,20 @@ export async function buildPackage(options) {
     `${JSON.stringify(createNeonDarkStyle(layers), null, 2)}\n`
   );
 
+  let aip;
+  if (layers.includes('aip')) {
+    options.onProgress?.({
+      phase: 'stage',
+      step: 'write-aip-airports',
+      message: 'Writing AIP airport and runway catalog'
+    });
+    aip = await exportAipAirportCatalog({ packageDir: outDir });
+  }
+
   return {
     outDir,
-    counts: buildResult.counts
+    counts: buildResult.counts,
+    aip
   };
 }
 

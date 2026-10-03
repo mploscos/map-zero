@@ -15,6 +15,8 @@ For application-facing definitions and a complete example, see [Custom geospatia
 - `src/build.js`: package build orchestration and output folder creation.
 - `src/osm.js`: streamed OSM PBF scan, temporary SQLite build store, geometry extraction.
 - `src/layers.js`: logical layer definitions, OSM tag matching, layer property normalization, including subtle 2D terrain edge overlays for coastline, beach/sand, and cliffs.
+- `packages/core/src/aip.js`: source-neutral airport catalog contract plus OSM and normalized AIP feature adaptation.
+- `src/aip.js`: Node adapter for GeoPackage reads, catalog output and manifest updates.
 - `src/gpkg.js`: GeoPackage creation and incremental feature writes.
 - `src/gpkg-read.js`: readonly GeoPackage metadata and tile feature queries.
 - `src/geometry-read.js`: GeoPackage binary geometry decoding.
@@ -24,15 +26,25 @@ For application-facing definitions and a complete example, see [Custom geospatia
 Node consumers can use stable package subpaths:
 
 ```js
-import { openGeoPackageWriter, writeGeoPackage } from 'map-zero/gpkg';
-import { openGeoPackageReader } from 'map-zero/gpkg-read';
-import { createManifest, resolveManifestLayers, isLayerInZoomRange } from 'map-zero/manifest';
+import { openGeoPackageWriter, writeGeoPackage } from '@map-zero/cli/gpkg';
+import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
+import { createManifest, resolveManifestLayers, isLayerInZoomRange } from '@map-zero/cli/manifest';
 ```
 
 These export the existing implementations directly. Legacy deep imports such as
 `map-zero/src/gpkg.js` remain available. The writer accepts typed layer schemas;
 reader and manifest helpers accept public IDs mapped to independent SQL tables.
 No adapter-specific schema or conversion logic is included in these entry points.
+
+The browser-safe aviation contract belongs to the scoped core package:
+
+```js
+import { createAipAirportCatalog } from '@map-zero/core/aip.js';
+```
+
+It accepts raw OSM AIP features or normalized `airports` and `runways` features.
+GeoPackage reading and catalog export remain private Node build operations. See
+[AIP airport catalogs](aip.md) for the package artifact and source boundary.
 
 For reproducible exports, `openGeoPackageWriter(path, layers, bbox, { lastChange })`
 and `writeGeoPackage(path, features, layers, bbox, { lastChange })` accept a fixed
@@ -51,10 +63,10 @@ none of these inspection queries unless the caller requests them.
 
 ### Public PMTiles export API
 
-`exportPmtiles` from `map-zero/export-pmtiles` exposes the existing exporter:
+`exportPmtiles` from `@map-zero/cli/export-pmtiles` exposes the existing exporter:
 
 ```js
-import { exportPmtiles } from 'map-zero/export-pmtiles';
+import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
 
 const result = await exportPmtiles({
   packageDir: './dataset', minZoom: 4, maxZoom: 15, workers: 1

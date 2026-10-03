@@ -9,7 +9,7 @@ Those definitions belong to the OSM adapter.
 Install the published package with Node.js 22 or newer:
 
 ```bash
-npm install map-zero
+npm install @map-zero/cli
 ```
 
 ## Where definitions live
@@ -34,10 +34,10 @@ Save this as `build-survey.mjs` and run `node build-survey.mjs`. It creates
 ```js
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { openGeoPackageWriter } from 'map-zero/gpkg';
-import { openGeoPackageReader } from 'map-zero/gpkg-read';
-import { createManifest } from 'map-zero/manifest';
-import { exportPmtiles } from 'map-zero/export-pmtiles';
+import { openGeoPackageWriter } from '@map-zero/cli/gpkg';
+import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
+import { createManifest } from '@map-zero/cli/manifest';
+import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
 
 const packageDir = './survey.mapzero';
 const bbox = [-3.71, 40.41, -3.69, 40.43]; // west, south, east, north
@@ -105,7 +105,7 @@ const result = await exportPmtiles({ packageDir, minZoom: 4, maxZoom: 14, worker
 console.log(result.outPath, result.writtenTiles, result.outputBytes);
 ```
 
-The manifest remains format `mapzero`, version `1`; package version `0.5.0`
+The manifest remains format `mapzero`, version `1`; package version `0.6.0`
 is a separate concept. The exporter updates the manifest's `tiles` entry.
 It reads features from the closed GeoPackage, without needing the original
 feature objects. Subsequent exports can use the CLI:

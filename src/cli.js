@@ -4,10 +4,15 @@ import { clearLine, cursorTo } from 'node:readline';
 
 import { Command, InvalidArgumentError } from 'commander';
 
+import { exportAipAirportCatalog } from './aip.js';
 import { buildPackage } from './build.js';
 import { export3dTiles } from './3dtiles/export.js';
 import { exportPmtiles } from './export-pmtiles.js';
-import { createPackageFromBbox } from './from-bbox.js';
+import {
+  createAirportCatalogFromBbox,
+  createPackageFromBbox,
+  findGeofabrikExtractCandidates
+} from './from-bbox.js';
 import { LAYER_ALIASES, SUPPORTED_LAYERS } from './layers.js';
 import { packageMapZero } from './package.js';
 import { serveBboxBuilder } from './bbox-server.js';
@@ -52,6 +57,7 @@ program
       for (const [layer, count] of Object.entries(result.counts)) {
         console.log(`  ${layer}: ${count}`);
       }
+      if (result.aip) printAipSummary(result.aip);
     } catch (error) {
       progress.finish();
       console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
@@ -71,6 +77,7 @@ program
   .option('--force-pmtiles', 'allow very large PMTiles exports')
   .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
   .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
+  .option('--extracts <ids>', 'comma-separated Geofabrik extract ids', parseExtractIdsOption)
   .option('--force-download', 're-download the selected OSM extract even if cached')
   .option('--batch-size <count>', 'geometry build batch size', parsePositiveIntegerOption, 5000)
   .option('--keep-temp', 'keep the temporary SQLite build database')
@@ -92,6 +99,7 @@ program
         forcePmtiles: Boolean(options.forcePmtiles),
         cacheDir: options.cacheDir,
         providerIndexUrl: options.providerIndexUrl,
+        extracts: options.extracts,
         forceDownload: Boolean(options.forceDownload),
         batchSize: options.batchSize,
         keepTemp: Boolean(options.keepTemp),
@@ -116,6 +124,7 @@ program
       for (const [layer, count] of Object.entries(result.counts)) {
         console.log(`  ${layer}: ${count}`);
       }
+      if (result.aip) printAipSummary(result.aip);
       if (result.pmtiles) {
         console.log(`  PMTiles: ${result.pmtiles.outPath} (${formatBytes(result.pmtiles.outputBytes)})`);
       }
@@ -127,6 +136,91 @@ program
       }
     } catch (error) {
       buildProgress.finish();
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('extracts')
+  .description('List Geofabrik extracts that intersect a bbox.')
+  .requiredOption('--bbox <bbox>', 'minLon,minLat,maxLon,maxLat', parseBboxOption)
+  .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
+  .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
+  .action(async (options) => {
+    try {
+      const extracts = await findGeofabrikExtractCandidates(options.bbox, {
+        cacheDir: options.cacheDir,
+        indexUrl: options.providerIndexUrl
+      });
+      if (extracts.length === 0) {
+        console.log('No intersecting Geofabrik extracts found.');
+        return;
+      }
+      console.log('ID\tNAME\tPARENT\tCACHED');
+      for (const extract of extracts) {
+        console.log(`${extract.id}\t${extract.name}\t${extract.parent ?? '-'}\t${extract.cached ? 'yes' : 'no'}`);
+      }
+      console.log('\nSelect one or more with --extracts=id-one,id-two');
+    } catch (error) {
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('airports')
+  .description('Generate a standalone airports.json catalog for a bbox.')
+  .requiredOption('--bbox <bbox>', 'minLon,minLat,maxLon,maxLat', parseBboxOption)
+  .requiredOption('--out <airports.json>', 'output JSON file')
+  .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
+  .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
+  .option('--extracts <ids>', 'comma-separated Geofabrik extract ids', parseExtractIdsOption)
+  .option('--force-download', 're-download the selected OSM extract even if cached')
+  .option('--batch-size <count>', 'geometry build batch size', parsePositiveIntegerOption, 5000)
+  .action(async (options) => {
+    const buildProgress = createBuildProgressReporter();
+    try {
+      const result = await createAirportCatalogFromBbox({
+        bbox: options.bbox,
+        out: options.out,
+        cacheDir: options.cacheDir,
+        providerIndexUrl: options.providerIndexUrl,
+        extracts: options.extracts,
+        forceDownload: Boolean(options.forceDownload),
+        batchSize: options.batchSize,
+        onStage(message) {
+          console.log(message);
+        },
+        onBuildProgress: buildProgress.update
+      });
+      buildProgress.finish();
+      console.log(`Generated ${result.outPath}`);
+      for (const source of result.sources) {
+        console.log(`  source: ${source.name} (${source.path})`);
+      }
+      printAipSummary({ summary: result.summary });
+    } catch (error) {
+      buildProgress.finish();
+      console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('aip-airports')
+  .description('Generate the AIP airport/runway catalog for an existing map-zero package.')
+  .argument('<package.mapzero>', 'map-zero package folder')
+  .option('--out <path>', 'catalog path inside the package', 'aip/airports.json')
+  .action(async (packageDir, options) => {
+    try {
+      const result = await exportAipAirportCatalog({
+        packageDir,
+        out: options.out
+      });
+      console.log(`Exported ${result.outPath}`);
+      printAipSummary(result);
+    } catch (error) {
       console.error(`map-zero: ${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;
     }
@@ -262,10 +356,10 @@ program
 
 program
   .command('bbox-ui')
-  .description('Open an OpenLayers bbox builder that can generate complete map-zero packages.')
+  .description('Open a bbox tool for map packages or standalone airport catalogs.')
   .option('--port <port>', 'HTTP port', parsePortOption, 8090)
   .option('--host <host>', 'HTTP host', '127.0.0.1')
-  .option('--output-root <dir>', 'directory where generated .mapzero folders are written', process.cwd())
+  .option('--output-root <dir>', 'directory where generated outputs are written', process.cwd())
   .option('--cache-dir <dir>', 'OSM extract cache directory; defaults to ~/.cache/map-zero/osm')
   .option('--provider-index-url <url>', 'Geofabrik-compatible index URL')
   .action(async (options) => {
@@ -345,6 +439,18 @@ function parseLayersOption(value) {
   } catch (error) {
     throw new InvalidArgumentError(error instanceof Error ? error.message : String(error));
   }
+}
+
+/**
+ * @param {string} value
+ * @returns {string[]}
+ */
+function parseExtractIdsOption(value) {
+  const extracts = value.split(',').map((item) => item.trim()).filter(Boolean);
+  if (extracts.length === 0) {
+    throw new InvalidArgumentError('extracts must contain at least one Geofabrik id');
+  }
+  return extracts;
 }
 
 /**
@@ -794,4 +900,11 @@ function formatBytes(value) {
  */
 function formatInteger(value) {
   return new Intl.NumberFormat('en-US').format(value);
+}
+
+function printAipSummary(result) {
+  const summary = result.summary;
+  console.log(`  AIP airports: ${formatInteger(summary.airports)}`);
+  console.log(`  AIP runway directions: ${formatInteger(summary.runwayDirections)}`);
+  console.log(`  AIP estimated thresholds: ${formatInteger(summary.estimatedThresholds)}`);
 }

@@ -6,7 +6,7 @@
 
 **Build portable maps from OpenStreetMap or your own geospatial data.**
 
-![Version 0.5.0](https://img.shields.io/badge/version-0.5.0-48d6bd)
+![Version 0.6.0](https://img.shields.io/badge/version-0.6.0-48d6bd)
 [![npm](https://img.shields.io/npm/v/map-zero)](https://www.npmjs.com/package/map-zero)
 [![MIT license](https://img.shields.io/badge/license-MIT-a9bbc9)](LICENSE)
 
@@ -25,7 +25,7 @@ Use OpenLayers for 2D maps and custom cartography. Cesium consumes prebuilt stat
 Use Node.js 22 or newer. Install the CLI and open the map builder:
 
 ```bash
-npm install --global map-zero
+npm install --global @map-zero/cli
 map-zero bbox-ui --output-root ./generated
 ```
 
@@ -33,7 +33,7 @@ map-zero bbox-ui --output-root ./generated
 2. Click **Draw bbox** and mark your area, or paste its coordinates.
 3. Name the output `madrid.mapzero`, choose layers and formats, then click **Build map-zero**.
 
-The builder downloads suitable OpenStreetMap data, reuses cached downloads when available, and shows progress as it creates your package. Start with a small area; larger extracts and higher zoom levels take longer.
+The builder downloads suitable OpenStreetMap data, reuses cached downloads and shows progress. Choose **Airport catalog** to generate only a standalone `airports.json`; it can be copied into an application and does not require a map-zero server at runtime. Choose **Map package** for the complete cartographic output. Start with a small area; larger extracts and higher zoom levels take longer.
 
 When the build finishes, open your map:
 
@@ -55,7 +55,7 @@ Select your area **directly on a map** with `bbox-ui`: draw a rectangle, adjust 
 ![The real bbox builder: drawing a rectangle over Madrid and choosing the package name and outputs](docs/media/bbox-builder.gif)
 
 ```bash
-npx map-zero@0.5.0 bbox-ui --output-root ./generated
+npx map-zero@0.6.0 bbox-ui --output-root ./generated
 ```
 
 Open **http://127.0.0.1:8090**. You can also paste coordinates into the bbox field. The animation shows area selection and output configuration; build progress appears in the UI after submitting the job.
@@ -116,6 +116,7 @@ flowchart TD
 | `tiles.pmtiles` | A single vector tile archive for your map |
 | `3dtiles/` | Static geometry and feature metadata for Cesium, including labels |
 | `styles/` | Map colors and appearance |
+| `aip/airports.json` | Airports, runway thresholds and true headings for the selected area |
 | `manifest.json` | Information connecting the package contents |
 
 PMTiles and 3D Tiles are optional outputs. The optional ZIP contains the map assets; select **GPKG in ZIP** if you also want the source GeoPackage included.
@@ -127,7 +128,7 @@ The OSM adapter supplies layers including roads, buildings, water, land use, rai
 Install the library in your application:
 
 ```bash
-npm install map-zero
+npm install @map-zero/cli
 ```
 
 Define your data in your own JavaScript module or source adapter:
@@ -156,7 +157,8 @@ map-zero pmtiles ./area.mapzero
 map-zero 3dtiles ./area.mapzero
 ```
 
-[More CLI workflows and export options](docs/usage.md).
+[More CLI workflows and export options](docs/usage.md), including the
+[AIP airport catalog contract](docs/aip.md).
 
 ## Customize and Share
 

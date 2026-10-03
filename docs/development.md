@@ -27,7 +27,7 @@ npm run test:browser:static -- generated/madrid.mapzero
 
 See [recording instructions](media/README.md) to reproduce the README GIFs, [architecture](architecture.md) for the module layout, and [performance](performance.md) for measured behavior and remaining work.
 
-The npm packages are `map-zero`, `@map-zero/core`, `@map-zero/ol`, and `@map-zero/cesium`. Publish the shared core before the integration packages, which depend on the matching core version. The root CLI includes its own browser integration sources.
+The npm packages are `@map-zero/cli`, `@map-zero/core`, `@map-zero/ol`, and `@map-zero/cesium`. Publish the shared core before the integration packages, which depend on the matching core version. The root CLI includes its own browser integration sources.
 
 ## Cesium validation
 

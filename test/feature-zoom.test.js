@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import MVT from 'ol/format/MVT.js';
-import { writeGeoPackage } from 'map-zero/gpkg';
-import { openGeoPackageReader } from 'map-zero/gpkg-read';
-import { resolveManifestLayers } from 'map-zero/manifest';
+import { writeGeoPackage } from '@map-zero/cli/gpkg';
+import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
+import { resolveManifestLayers } from '@map-zero/cli/manifest';
 import { encodeMvtTileSet } from '../src/mvt.js';
 
 const bbox = [0, 0, 0.01, 0.01];

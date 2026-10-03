@@ -1,6 +1,6 @@
 # Cesium vector format: implementation notes
 
-map-zero 0.5.0 writes static vector context and ordinary extruded building meshes.
+map-zero 0.6.0 writes static vector context and ordinary extruded building meshes.
 The viewer defaults to `HeightReference.NONE`. On the evaluated flat Madrid
 scene, disabling clamping substantially reduced motion stalls while retaining
 acceptable appearance. This does not establish equivalent results on terrain

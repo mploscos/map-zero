@@ -1,10 +1,37 @@
 # Command-line workflows
 
-Install with `npm install --global map-zero`. The commands below assume you are using the published CLI.
+Install with `npm install --global @map-zero/cli`. The commands below assume you are using the published CLI.
 
 The source-building commands (`build`, `from-bbox`, `bbox-ui`) import OSM. To define other datasets, use the [custom data JavaScript API](custom-data.md), then run `map-zero pmtiles ./dataset.mapzero --min-zoom 4 --max-zoom 14` to export their GeoPackage.
 
 ## CLI Workflows
+
+### Generate a standalone airport catalog
+
+Generate only the static JSON needed by an instructor application:
+
+```bash
+map-zero airports \
+  --bbox=-4.2,40.1,-3.3,40.7 \
+  --out ./airports.json
+```
+
+The command downloads or reuses the appropriate OSM extract, builds the AIP
+data in a temporary directory and removes it when the JSON has been written.
+No map package or map-zero server is required by the consuming application.
+The visual `bbox-ui` offers the same operation through the **Airport catalog**
+output type.
+
+Areas split across discontinuous Geofabrik extracts can name their sources
+explicitly, for example `--extracts=spain,canary-islands`.
+Discover the provider IDs intersecting an unfamiliar area before generating:
+
+```bash
+map-zero extracts --bbox=-18.3,27.5,4.5,43.9
+```
+
+If automatic selection cannot find one covering extract, the error reports
+these candidates and points to the same discovery command.
 
 ### Build from a bbox
 
@@ -17,6 +44,10 @@ map-zero from-bbox \
 ```
 
 This runs the same pipeline as `bbox-ui`. By default it exports PMTiles at zooms 8-16, 3D Tiles, and `madrid.mapzero.zip`. Use `--no-pmtiles`, `--no-3dtiles`, or `--no-zip` to omit an output; use `--include-gpkg` to retain the source GeoPackage in the ZIP.
+
+When the `aip` layer is selected, both workflows also create the airport and
+directional-runway catalog declared by the package manifest. See
+[AIP airport catalogs](aip.md).
 
 ### Build from a local PBF
 
@@ -52,6 +83,9 @@ map-zero pmtiles ./madrid.mapzero --minzoom 8 --maxzoom 16
 # Cesium-ready 3D Tiles
 map-zero 3dtiles ./madrid.mapzero
 
+# Regenerate the airport/runway catalog from AIP data
+map-zero aip-airports ./madrid.mapzero
+
 # Portable ZIP; data.gpkg is excluded unless requested
 map-zero package ./madrid.mapzero --include-gpkg
 
@@ -75,13 +109,14 @@ The base `build` command writes `data.gpkg`, `manifest.json`, and the default st
 | `data.gpkg` | Source features in GeoPackage format | `build` |
 | `manifest.json` | Layers, bounds, styles and tile asset locations | `build`; updated by exports |
 | `styles/neon-dark.json` | Default cartographic style | `build` |
+| `aip/airports.json` | Airports and directional runway thresholds | `build` when `aip` is selected; `aip-airports` |
 | `tiles.pmtiles` | Vector tiles for 2D and native 3D context | `pmtiles` |
 | `3dtiles/<layer>/tileset.json` | Spatial hierarchy and tile references per layer | `3dtiles` |
 | `3dtiles/` | Vector GLBs and extruded meshes with feature/label metadata | `3dtiles` |
 
 `bbox-ui` and `from-bbox` run these stages together for the selected outputs.
 
-`package` writes `madrid.mapzero.zip` beside the folder. The archive includes the manifest, referenced styles, PMTiles, and 3D Tiles; it excludes `data.gpkg` by default because static OpenLayers and Cesium consumers do not need it.
+`package` writes `madrid.mapzero.zip` beside the folder. The archive includes the manifest, referenced styles, the AIP airport catalog, PMTiles, and 3D Tiles; it excludes `data.gpkg` by default because static OpenLayers and Cesium consumers do not need it.
 
 PMTiles is a single static file served with HTTP range requests. It can be deployed to static hosting, object storage, nginx, or a CDN that supports range requests. 3D Tiles are likewise static files that Cesium can load from a normal web server.
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Publish the build and command-line package as `@map-zero/cli`; the installed executable remains `map-zero`.
+- Generate a source-neutral airport and directional-runway catalog from the selected AIP data. Bbox builds declare and package the static artifact automatically; OSM thresholds produce true headings and normalized airport/runway layers provide the future adapter boundary for sources such as ARINC 424.
+- Expose the browser-safe AIP catalog contract and shared GeoJSON geometry helpers from `@map-zero/core`; keep GeoPackage reading and artifact generation in the Node build pipeline.
+- Update PMTiles to 4.5.0 across the build pipeline and OpenLayers peer contract.
+- Update Fastify to 5.12.5 and fflate to 0.8.3, refreshing their vulnerable transitive dependencies; `npm audit` reports no known vulnerabilities.
+- Add direct standalone `airports.json` generation from a bounding box in the CLI and visual bbox tool, without requiring a map package or runtime server in the consuming application.
+- Correct Geofabrik polygon tests for closed rings and antimeridian geometries, allow explicit extract selection for discontinuous regions, and add `map-zero extracts` plus actionable selection errors so users do not need prior knowledge of provider IDs.
+
 ## 0.5.0
 
 - Improve Cesium label legibility with larger text and stronger contrast and outlines; add Cesium-only label presentation settings to style JSON.

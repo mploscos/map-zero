@@ -23,7 +23,17 @@ try {
     await page.goto(url + path, { timeout: 60000 });
     if (path.startsWith('/cesium')) {
       await page.waitForFunction(() => globalThis.mapZeroController && Object.values(mapZeroController.tilesets).every((tileset) => !tileset.show || tileset.tilesLoaded), null, { timeout: 60000 });
-
+      await page.evaluate(() => {
+        const bbox = mapZeroController.manifest.bbox;
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(
+            (bbox[0] + bbox[2]) / 2,
+            (bbox[1] + bbox[3]) / 2,
+            500
+          ),
+          orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 }
+        });
+      });
       await page.waitForFunction(() => mapZeroController.labelCollection.length > 0, null, { timeout: 30000 });
       console.log('Native labels:', await page.evaluate(() => mapZeroController.labelCollection.length));
       assert.ok(await page.evaluate(() => mapZeroController.labelCollection.length <= 150));

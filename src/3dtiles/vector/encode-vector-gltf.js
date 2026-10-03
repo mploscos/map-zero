@@ -162,7 +162,7 @@ export function encodeVectorContent(features, options = {}) {
   for (const mesh of meshes) for (const primitive of mesh.primitives) primitive.extensions[E.features].featureIds[0].featureCount = rows.length;
   const metadata = encodeMetadata(rows, addView);
   const extensionsUsed = [E.features, E.metadata, ...(usesPolygons ? [E.polygon] : []), ...(usesRestart ? [E.restart] : [])];
-  const json = { asset: { version: '2.0', generator: 'map-zero 0.5.0 vector (CesiumJS 1.145)' }, scene: 0,
+  const json = { asset: { version: '2.0', generator: 'map-zero 0.6.0 vector (CesiumJS 1.145)' }, scene: 0,
     scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, meshes, accessors, bufferViews, buffers: [{ byteLength }],
     extensionsUsed, ...(usesRestart ? { extensionsRequired: [E.restart] } : {}), extensions: { [E.metadata]: metadata } };
   return [{ bytes: packGlb(json, Buffer.concat(chunks)), extension: 'glb', bbox, minHeight, maxHeight, count: rows.length, warnings }];

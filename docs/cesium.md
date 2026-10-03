@@ -7,7 +7,7 @@ with feature styling, layer controls and streamed labels.
 ## Build and host
 
 ```bash
-npm install --global map-zero
+npm install --global @map-zero/cli
 map-zero 3dtiles ./madrid.mapzero
 map-zero serve ./madrid.mapzero --port 8080
 ```

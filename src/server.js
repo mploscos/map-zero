@@ -172,6 +172,17 @@ export async function createMapZeroServer(options) {
     reply.header('cache-control', 'no-store').send(manifest);
   });
 
+  const airportCatalogUrl = manifest.aip?.airports?.url;
+  if (typeof airportCatalogUrl === 'string') {
+    const airportCatalogPath = safeJoin(packageDir, airportCatalogUrl);
+    if (!airportCatalogPath) {
+      throw new Error(`invalid AIP airport catalog URL: ${airportCatalogUrl}`);
+    }
+    app.get(`/${airportCatalogUrl}`, async (request, reply) => {
+      await sendRangeFile(request, reply, airportCatalogPath, 'application/json; charset=utf-8');
+    });
+  }
+
   const pmtilesPath = pmtilesArchivePath(packageDir, manifest);
   if (pmtilesPath) {
     app.get(`/${pmtilesPath.url}`, async (request, reply) => {

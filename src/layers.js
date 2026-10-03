@@ -93,7 +93,7 @@ export const LAYER_DEFINITIONS = {
   aip: {
     type: 'mixed',
     gpkgGeometryType: 'GEOMETRY',
-    columns: ['id', 'name', 'aeroway', 'ref', 'surface', 'width', 'length']
+    columns: ['id', 'name', 'aeroway', 'ref', 'icao', 'iata', 'ele', 'surface', 'width', 'length']
   }
 };
 

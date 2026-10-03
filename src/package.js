@@ -85,6 +85,11 @@ async function collectPackageEntries(packageDir, manifest, options) {
   await addFile('manifest.json');
   await addManifestStyles(manifest, addFile);
 
+  const airportCatalogUrl = manifest.aip?.airports?.url;
+  if (typeof airportCatalogUrl === 'string') {
+    await addFile(airportCatalogUrl);
+  }
+
   const pmtilesUrl = manifest.tiles?.format === 'pmtiles' ? manifest.tiles.url : null;
   if (typeof pmtilesUrl === 'string') {
     await addFile(pmtilesUrl);

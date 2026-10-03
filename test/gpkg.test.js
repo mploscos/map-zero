@@ -205,6 +205,9 @@ test('OSM package build retains schemas, aliases, text properties and deduplicat
   const manifest = JSON.parse(await readFile(join(out, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.layers, SUPPORTED_LAYERS);
   assert.deepEqual(manifest.bbox, bbox);
+  assert.equal(manifest.aip.airports.url, 'aip/airports.json');
+  const airportCatalog = JSON.parse(await readFile(join(out, manifest.aip.airports.url), 'utf8'));
+  assert.equal(airportCatalog.format, 'mapzero-aip-airports');
   const gpkgPath = join(out, 'data.gpkg');
   withDatabase(gpkgPath, (db) => {
     for (const id of SUPPORTED_LAYERS) {
