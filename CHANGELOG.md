@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- Allow compatible OpenLayers, Cesium and PMTiles minor releases instead of requiring exact peer versions.
+- Resolve shared browser modules through the public `@map-zero/core` package exports so the adapters work regardless of npm's dependency layout.
+- Register the three browser packages as npm workspaces so package imports are exercised by the repository test suite.
+
 ## 0.6.0
 
 - Publish the build and command-line package as `@map-zero/cli`; the installed executable remains `map-zero`.

@@ -3,7 +3,7 @@ import MVT from 'ol/format/MVT.js';
 import VectorTileSource from 'ol/source/VectorTile.js';
 import { createXYZ } from 'ol/tilegrid.js';
 import { FileSource, FetchSource, PMTiles } from 'pmtiles';
-import { resolveManifestLayers, isFeatureInZoomRange } from '../../core/src/manifest.js';
+import { resolveManifestLayers, isFeatureInZoomRange } from '@map-zero/core/manifest.js';
 
 let sourceId = 0;
 

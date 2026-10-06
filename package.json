@@ -15,6 +15,11 @@
   "bin": {
     "map-zero": "src/cli.js"
   },
+  "workspaces": [
+    "packages/core",
+    "packages/ol",
+    "packages/cesium"
+  ],
   "scripts": {
     "dev": "node src/cli.js --help",
     "start": "node src/cli.js",

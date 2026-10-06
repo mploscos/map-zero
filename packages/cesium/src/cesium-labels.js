@@ -2,10 +2,10 @@ import {
   Cartesian2, Cartesian3, Color, EllipsoidalOccluder, HeightReference,
   HorizontalOrigin, LabelCollection, LabelStyle, SceneMode, SceneTransforms, VerticalOrigin
 } from 'cesium';
-import { LruCache } from '../../core/src/shared/cache.js';
-import { describeLabel } from '../../core/src/labels.js';
-import { getLayerRule, zoomMatchesRule } from '../../core/src/style.js';
-import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
+import { LruCache } from '@map-zero/core/shared/cache.js';
+import { describeLabel } from '@map-zero/core/labels.js';
+import { getLayerRule, zoomMatchesRule } from '@map-zero/core/style.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '@map-zero/core/manifest.js';
 
 /**
  * Adapt the shared theme to small screen-facing labels over dense 3D geometry.

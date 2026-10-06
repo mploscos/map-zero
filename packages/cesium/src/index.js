@@ -21,7 +21,7 @@ let autoInstanceCounter = 0;
  *   bbox?: [number, number, number, number],
  *   styles?: Record<string, string>,
  *   tiles3d?: { format?: string, url?: string, layers?: string[], tilesets?: Record<string,string>, representations?: Record<string,{minZoom?:number,maxZoom?:number}> },
- *   layers?: Array<string | import('../../core/src/manifest.js').ManifestLayerInput>
+ *   layers?: Array<string | import('@map-zero/core/manifest.js').ManifestLayerInput>
  * }} MapZeroManifest
  */
 

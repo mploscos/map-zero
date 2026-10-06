@@ -1,6 +1,6 @@
-import { LruCache } from '../../core/src/shared/cache.js';
-import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
-import { layerAlias } from '../../core/src/shared/layers.js';
+import { LruCache } from '@map-zero/core/shared/cache.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '@map-zero/core/manifest.js';
+import { layerAlias } from '@map-zero/core/shared/layers.js';
 import Feature from 'ol/Feature.js';
 import MVT from 'ol/format/MVT.js';
 import VectorTileLayer from 'ol/layer/VectorTile.js';
@@ -35,8 +35,8 @@ import {
   LABEL_SOURCE_LAYERS,
   ROAD_SOURCE_LAYER,
   POI_SOURCE_LAYER
-} from '../../core/src/labels.js';
-export { activeLabelLayerIdsForZoom, hasEnabledLabels } from '../../core/src/labels.js';
+} from '@map-zero/core/labels.js';
+export { activeLabelLayerIdsForZoom, hasEnabledLabels } from '@map-zero/core/labels.js';
 
 export function createMapZeroLabelLayer(options) {
   const layers = new Map(resolveManifestLayers(options.manifest ?? {}).map((layer) => [layer.id, layer]));

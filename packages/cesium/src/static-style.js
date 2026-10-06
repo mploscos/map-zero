@@ -1,6 +1,6 @@
 import { Cesium3DTileStyle, Color } from 'cesium';
-import { getLayerRule, mergeFeatureRule, objectRule, styleWidth, zoomMatchesRule } from '../../core/src/style.js';
-import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
+import { getLayerRule, mergeFeatureRule, objectRule, styleWidth, zoomMatchesRule } from '@map-zero/core/style.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '@map-zero/core/manifest.js';
 const POLYGON_LAYERS = new Set(['landuse', 'terrain', 'water', 'buildings']);
 
 /**
@@ -25,7 +25,7 @@ export function createStaticTileStyle(styleDocument, options = {}) {
  * Create a new factory when replacing the theme, manifest or feature metadata.
  * Features are weakly held so unloading tiles releases their cached descriptions.
  * @param {Record<string, unknown>} styleDocument
- * @param {{manifest?: {layers?: Array<string | import('../../core/src/manifest.js').ManifestLayerInput>}}} [options]
+ * @param {{manifest?: {layers?: Array<string | import('@map-zero/core/manifest.js').ManifestLayerInput>}}} [options]
  * @returns {(options?: StaticStyleOptions) => Cesium3DTileStyle}
  */
 export function createStaticTileStyleFactory(styleDocument, options = {}) {

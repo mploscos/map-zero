@@ -1,6 +1,6 @@
 import { createPmtilesTileLoadFunction } from './pmtiles.js';
 export { createPmtilesVectorSource, withFeatureZoomVisibility } from './pmtiles.js';
-import { LruCache, cachedPromise } from '../../core/src/shared/cache.js';
+import { LruCache, cachedPromise } from '@map-zero/core/shared/cache.js';
 import MVT from 'ol/format/MVT.js';
 import WebGLVectorTileLayer from 'ol/layer/WebGLVectorTile.js';
 import WebGLVectorTileLayerRenderer from 'ol/renderer/webgl/VectorTileLayer.js';
@@ -8,8 +8,8 @@ import VectorTileSource from 'ol/source/VectorTile.js';
 import { createXYZ } from 'ol/tilegrid.js';
 import { PMTiles } from 'pmtiles';
 
-import { isAipLayer, layerAlias } from '../../core/src/shared/layers.js';
-import { resolveManifestLayers, isLayerInZoomRange } from '../../core/src/manifest.js';
+import { isAipLayer, layerAlias } from '@map-zero/core/shared/layers.js';
+import { resolveManifestLayers, isLayerInZoomRange } from '@map-zero/core/manifest.js';
 import { maxZoomExpression, minZoomExpression, zoomInterpolateExpression } from './zoom.js';
 
 import {
