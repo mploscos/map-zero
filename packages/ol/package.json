@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/ol",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "description": "OpenLayers integration for map-zero datasets and custom PMTiles cartography.",
   "license": "MIT",
@@ -23,7 +23,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@map-zero/core": "0.6.0"
+    "@map-zero/core": "0.6.2"
   },
   "peerDependencies": {
     "ol": "^10.10.0",

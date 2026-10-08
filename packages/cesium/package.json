@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/cesium",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "description": "Static 3D Tiles maps and spatially streamed labels for Cesium, without a runtime map server.",
   "license": "MIT",
@@ -22,7 +22,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@map-zero/core": "0.6.0"
+    "@map-zero/core": "0.6.2"
   },
   "peerDependencies": {
     "cesium": "^1.145.0"

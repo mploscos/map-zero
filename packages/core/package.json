@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/core",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "type": "module",
   "description": "Renderer-independent map-zero contracts, AIP catalogs, geometry, styles and caches.",
   "license": "MIT",

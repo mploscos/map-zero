@@ -105,7 +105,7 @@ program
         keepTemp: Boolean(options.keepTemp),
         debugBuild: Boolean(options.debugBuild),
         pmtiles: options.pmtiles,
-        tiles3d: options.tiles3d,
+        tiles3d: options['3dtiles'],
         zip: options.zip,
         includeGpkg: Boolean(options.includeGpkg),
         onStage(message) {

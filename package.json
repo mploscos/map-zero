@@ -1,6 +1,6 @@
 {
   "name": "@map-zero/cli",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "description": "Portable vector maps from OSM or custom geospatial data, with GeoPackage storage, PMTiles delivery, and OpenLayers/Cesium integrations.",
   "type": "module",
   "license": "MIT",

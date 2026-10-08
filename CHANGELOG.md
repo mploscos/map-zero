@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Honor `--no-3dtiles` in `from-bbox` instead of exporting the 3D vector context.
+
 ## 0.6.1
 
 - Allow compatible OpenLayers, Cesium and PMTiles minor releases instead of requiring exact peer versions.
