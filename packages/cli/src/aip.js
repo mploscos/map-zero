@@ -5,7 +5,7 @@ import {
   AIP_AIRPORT_CATALOG_FORMAT,
   AIP_AIRPORT_CATALOG_VERSION,
   createAipAirportCatalog
-} from '../packages/core/src/aip.js';
+} from '@map-zero/core/aip.js';
 import { openGeoPackageReader } from './gpkg-read.js';
 import { resolveManifestLayers } from './manifest.js';
 
@@ -13,7 +13,7 @@ export {
   AIP_AIRPORT_CATALOG_FORMAT,
   AIP_AIRPORT_CATALOG_VERSION,
   createAipAirportCatalog
-} from '../packages/core/src/aip.js';
+} from '@map-zero/core/aip.js';
 
 const DefaultCatalogUrl = 'aip/airports.json';
 

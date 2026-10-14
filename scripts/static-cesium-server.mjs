@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, extname } from 'node:path';
-import { createCesiumViewerHtml } from '../src/html.js';
+import { createCesiumViewerHtml } from '../examples/shared/viewer-templates.js';
 
 /** Materialize application assets, then serve ordinary files with no data APIs. */
 export async function createStaticCesiumServer(packageDir) {

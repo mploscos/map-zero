@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
-import { createMapZeroServer } from '../src/server.js';
+import { createViewerExampleServer } from '../examples/viewer-server.mjs';
 
-const app = await createMapZeroServer({ packageDir: process.argv[2] ?? 'generated/bbox.mapzero' });
+const app = await createViewerExampleServer({ packageDir: process.argv[2] ?? 'generated/bbox.mapzero' });
 const url = await app.listen({ host: '127.0.0.1', port: 0 });
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
@@ -18,7 +18,7 @@ try {
   page.on('requestfailed', (request) => {
     if (request.failure()?.errorText !== 'net::ERR_ABORTED') errors.push(`${request.url()}: ${request.failure()?.errorText}`);
   });
-  const paths = process.argv[3] === '3d' ? ['/cesium'] : ['/?lon=-3.703&lat=40.417&zoom=16', '/cesium'];
+  const paths = process.argv[3] === '3d' ? ['/cesium'] : ['/openlayers?lon=-3.703&lat=40.417&zoom=16', '/cesium'];
   for (const path of paths) {
     await page.goto(url + path, { timeout: 60000 });
     if (path.startsWith('/cesium')) {

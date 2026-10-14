@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSparseTilePlan } from '../src/pmtiles-plan.js';
+import { createSparseTilePlan } from '../packages/cli/src/pmtiles-plan.js';
 import { writeGeoPackage } from '@map-zero/cli/gpkg';
 import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
 

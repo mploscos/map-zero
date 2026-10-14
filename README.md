@@ -6,8 +6,8 @@
 
 **Build portable maps from OpenStreetMap or your own geospatial data.**
 
-![Version 0.6.0](https://img.shields.io/badge/version-0.6.0-48d6bd)
-[![npm](https://img.shields.io/npm/v/map-zero)](https://www.npmjs.com/package/map-zero)
+![Version 0.7.0](https://img.shields.io/badge/version-0.7.0-48d6bd)
+[![npm](https://img.shields.io/npm/v/%40map-zero%2Fcli)](https://www.npmjs.com/package/@map-zero/cli)
 [![MIT license](https://img.shields.io/badge/license-MIT-a9bbc9)](LICENSE)
 
 [Get started](#quick-start) · [See it in action](#see-it-in-action) · [Documentation](#documentation)
@@ -22,7 +22,7 @@ Use OpenLayers for 2D maps and custom cartography. Cesium consumes prebuilt stat
 
 ## Quick Start
 
-Use Node.js 22 or newer. Install the CLI and open the map builder:
+Use Node.js 24.2 or newer. The CLI relies only on Node's built-in SQLite, so installation does not require Python or native compilation tools. Install it and open the map builder:
 
 ```bash
 npm install --global @map-zero/cli
@@ -35,16 +35,18 @@ map-zero bbox-ui --output-root ./generated
 
 The builder downloads suitable OpenStreetMap data, reuses cached downloads and shows progress. Choose **Airport catalog** to generate only a standalone `airports.json`; it can be copied into an application and does not require a map-zero server at runtime. Choose **Map package** for the complete cartographic output. Start with a small area; larger extracts and higher zoom levels take longer.
 
-When the build finishes, open your map:
+When the build finishes, serve its static assets and optional dynamic MVT API:
 
 ```bash
 map-zero serve ./generated/madrid.mapzero --port 8080
 ```
 
-- **2D:** http://127.0.0.1:8080
-- **3D:** http://127.0.0.1:8080/cesium
-
-Keep **3D Tiles** enabled when building to include map context, labels and extruded buildings in the 3D view. Generated files stay under the output directory you selected.
+The server exposes `manifest.json`, PMTiles, 3D Tiles and readonly API endpoints.
+Render them in your application with `@map-zero/ol` or `@map-zero/cesium`.
+Complete development viewers live under `examples/` in the repository and are
+not installed with the CLI. Keep **3D Tiles** enabled when building to include
+map context, labels and extruded buildings. Generated files stay under the
+output directory you selected.
 
 ## See it in action
 
@@ -55,7 +57,7 @@ Select your area **directly on a map** with `bbox-ui`: draw a rectangle, adjust 
 ![The real bbox builder: drawing a rectangle over Madrid and choosing the package name and outputs](docs/media/bbox-builder.gif)
 
 ```bash
-npx map-zero@0.6.0 bbox-ui --output-root ./generated
+npx @map-zero/cli@0.7.0 bbox-ui --output-root ./generated
 ```
 
 Open **http://127.0.0.1:8090**. You can also paste coordinates into the bbox field. The animation shows area selection and output configuration; build progress appears in the UI after submitting the job.
@@ -180,7 +182,7 @@ You can also integrate packages into your own application using **[@map-zero/ol]
 
 - This is an early alpha; package formats and integration APIs may change between releases.
 - The tools create readonly maps. Editing OpenStreetMap data is outside their scope.
-- The bbox builder needs internet access for its background map and new source downloads. The bundled viewers currently load their libraries from CDNs; fully offline applications must host those dependencies locally too.
+- The bbox builder needs internet access for its background map and new source downloads. Applications are responsible for bundling or hosting their selected renderer dependencies.
 - Large areas require more time, disk space and memory. Building heights depend on available OpenStreetMap attributes, with estimated heights where necessary.
 
 ## Documentation

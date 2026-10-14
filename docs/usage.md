@@ -66,13 +66,16 @@ map-zero build ./data/spain.osm.pbf \
   --out ./madrid.mapzero
 ```
 
-### Preview and dynamic MVT
+### Serve package data and dynamic MVT
 
 ```bash
-map-zero serve ./madrid.mapzero --port 8080 --open
+map-zero serve ./madrid.mapzero --port 8080
 ```
 
-`serve` provides a local OpenLayers viewer, a Cesium viewer at `/cesium`, and a readonly HTTP API. It also generates MVT dynamically from `data.gpkg` when PMTiles are absent. It is useful for local inspection, but not required to deploy exported PMTiles or 3D Tiles.
+`serve` provides package files and a readonly HTTP API. It also generates MVT
+dynamically from `data.gpkg` when PMTiles are absent. It intentionally does not
+bundle a renderer; use `@map-zero/ol` or `@map-zero/cesium` in the consuming
+application. Repository development viewers live under `examples/`.
 
 ### Export or update assets
 

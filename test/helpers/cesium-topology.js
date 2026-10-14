@@ -1,8 +1,8 @@
 import * as C from 'cesium';
-import {encodeVectorContent} from '../../src/3dtiles/vector/encode-vector-gltf.js';
-import {inspectVectorGlb} from '../../src/3dtiles/vector/validate.js';
-import {tileToBbox} from '../../src/mvt.js';
-import {decodedFeatures} from '../../src/3dtiles/mvt/features.js';
+import {encodeVectorContent} from '../../packages/cli/src/3dtiles/vector/encode-vector-gltf.js';
+import {inspectVectorGlb} from '../../packages/cli/src/3dtiles/vector/validate.js';
+import {tileToBbox} from '../../packages/cli/src/mvt.js';
+import {decodedFeatures} from '../../packages/cli/src/3dtiles/mvt/features.js';
 
 const ring=(x,y,s)=>[{x,y},{x:x+s,y},{x:x+s,y:y+s},{x,y:y+s},{x,y}];
 const decoded={layers:[{name:'survey',extent:4096,features:[{type:'Polygon',properties:{id:'polygon-with-two-holes'},geometry:[ring(512,512,3072),ring(1024,1024,512).reverse(),ring(2560,2560,512).reverse()]}]},

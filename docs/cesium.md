@@ -12,8 +12,9 @@ map-zero 3dtiles ./madrid.mapzero
 map-zero serve ./madrid.mapzero --port 8080
 ```
 
-Open `http://127.0.0.1:8080/cesium`. For static hosting, serve `manifest.json`,
-`styles/` and `3dtiles/` with their relative paths intact. Cesium does not request
+Point `@map-zero/cesium` at `http://127.0.0.1:8080/manifest.json`, or serve
+`manifest.json`, `styles/` and `3dtiles/` from any static host with their relative
+paths intact. Cesium does not request
 GeoPackage, PMTiles or a vector-tile API. A cross-origin host needs normal CORS
 headers. Host Cesium's assets locally too when offline operation is required.
 

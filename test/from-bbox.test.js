@@ -9,7 +9,7 @@ import {
   findGeofabrikExtractCandidates,
   findGeofabrikExtracts,
   findGeofabrikExtractsById
-} from '../src/from-bbox.js';
+} from '../packages/cli/src/from-bbox.js';
 
 test('findGeofabrikExtract picks the smallest extract that contains the bbox', async () => {
   const provider = await findGeofabrikExtract([-3.8, 40.35, -3.6, 40.5], {

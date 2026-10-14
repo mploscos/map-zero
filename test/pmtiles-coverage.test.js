@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { PMTiles } from 'pmtiles';
 import { writeGeoPackage } from '@map-zero/cli/gpkg';
 import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
-import { LocalPmtilesSource } from '../src/pmtiles-source.js';
+import { LocalPmtilesSource } from '../packages/cli/src/pmtiles-source.js';
 
 test('RTree block pruning preserves every MVT payload including polar and tile-edge geometry', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'mapzero-coverage-'));

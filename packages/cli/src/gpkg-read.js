@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import Database from './sqlite.js';
 
 import { decodeGeoPackageGeometry } from './geometry-read.js';
 import { resolveManifestLayers } from './manifest.js';
@@ -10,7 +10,7 @@ const LAYER_ALIASES = {
 };
 
 /**
- * @typedef {import('../packages/core/src/manifest.js').ManifestLayer & { style?: string }} ManifestLayer
+ * @typedef {import('@map-zero/core/manifest.js').ManifestLayer & { style?: string }} ManifestLayer
  *
  * @typedef {{
  *   format?: string,
@@ -19,7 +19,7 @@ const LAYER_ALIASES = {
  *   bbox?: [number, number, number, number],
  *   data?: string,
  *   styles?: Record<string, string>,
- *   layers?: Array<string | import('../packages/core/src/manifest.js').ManifestLayerInput>
+ *   layers?: Array<string | import('@map-zero/core/manifest.js').ManifestLayerInput>
  * }} Manifest
  *
  * @typedef {Map<string, Map<string, Set<string>>>} HiddenFilters

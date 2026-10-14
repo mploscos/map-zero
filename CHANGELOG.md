@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Replace `better-sqlite3` with Node's built-in SQLite so installing the CLI no longer invokes native compilation or requires Python; the CLI now requires Node 24.2+.
+- Make the repository root private and publish CLI, Core, OpenLayers and Cesium as four explicit workspaces under `packages/`.
+- Make `@map-zero/cli` depend on the public `@map-zero/core` package instead of reaching into workspace sources, and remove the combined `@map-zero/cli/ol` exports.
+- Keep the CLI server data-only. OpenLayers and Cesium viewer composition now lives under `examples/` and does not ship in the CLI tarball.
+
 ## 0.6.2
 
 - Honor `--no-3dtiles` in `from-bbox` instead of exporting the 3D vector context.

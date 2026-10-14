@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import Database from '../packages/cli/src/sqlite.js';
 import { writeGeoPackage } from '@map-zero/cli/gpkg';
 import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
 

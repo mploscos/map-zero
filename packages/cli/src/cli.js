@@ -383,11 +383,11 @@ program
 
 program
   .command('serve')
-  .description('Serve a .mapzero package with a readonly HTTP API and OpenLayers viewer.')
+  .description('Serve a .mapzero package with static assets and a readonly HTTP API.')
   .argument('<package.mapzero>', 'map-zero package folder')
   .option('--port <port>', 'HTTP port', parsePortOption, 8080)
   .option('--host <host>', 'HTTP host', '127.0.0.1')
-  .option('--open', 'open the viewer in the default browser')
+  .option('--open', 'open the service URL in the default browser')
   .option('--tile-cache-size <entries>', 'maximum in-memory generated MVT tile cache entries', parseTileCacheSizeOption, 500)
   .option('--tile-max-features <count>', 'maximum features to encode in one dynamic MVT tile', parseTileMaxFeaturesOption, 12000)
   .option('--no-tile-cache', 'disable the in-memory generated MVT tile cache')

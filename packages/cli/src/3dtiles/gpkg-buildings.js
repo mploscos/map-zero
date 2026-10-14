@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import Database from '../sqlite.js';
 
 import { decodeGeoPackageGeometry } from '../geometry-read.js';
 import { bboxIntersects, quoteIdentifier } from '../utils.js';

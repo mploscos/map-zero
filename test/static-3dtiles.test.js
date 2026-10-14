@@ -4,14 +4,14 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
 import { unzipSync } from 'fflate';
-import { createMapZeroServer } from '../src/server.js';
-import { packageMapZero } from '../src/package.js';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { resolveManifestLayers } from '../src/manifest.js';
-import { export3dTiles } from '../src/3dtiles/export.js';
+import { createMapZeroServer } from '../packages/cli/src/server.js';
+import { packageMapZero } from '../packages/cli/src/package.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { resolveManifestLayers } from '../packages/cli/src/manifest.js';
+import { export3dTiles } from '../packages/cli/src/3dtiles/export.js';
 import { Cesium3DTileset } from 'cesium';
 import { createMapZeroCesiumTilesets } from '../packages/cesium/src/index.js';
-import { buildPolygonSurfaceMesh } from '../src/3dtiles/flat.js';
+import { buildPolygonSurfaceMesh } from '../packages/cli/src/3dtiles/flat.js';
 
 const ids = ['roads','buildings','water','landuse','railways','boundaries','aip','pois','terrain','coastline','cliffs','group / name'];
 const polygon = {type:'Polygon',coordinates:[[[-0.02,-0.02],[0.02,-0.02],[0.02,0.02],[-0.02,0.02],[-0.02,-0.02]]]};
@@ -130,13 +130,14 @@ test('portable ZIP includes every static tileset and point content without GeoPa
   assert.equal(Object.keys(entries).length,result.fileCount);
 });
 
-test('built-in preview serves static Cesium packages without opening GeoPackage',async(t)=>{
+test('data-only server serves static 3D Tiles without opening GeoPackage',async(t)=>{
   const dir=await fixture(t);
   await export3dTiles({contextFormat:'mesh',packageDir:dir});
   await rm(join(dir,'data.gpkg'));
   const app=await createMapZeroServer({packageDir:dir});
   try {
-    assert.equal((await app.inject('/cesium')).statusCode,200);
+    assert.equal((await app.inject('/')).json().format,'mapzero-server');
+    assert.equal((await app.inject('/cesium')).statusCode,404);
     assert.equal((await app.inject('/3dtiles/pois/tileset.json')).statusCode,200);
     assert.equal((await app.inject('/api/tiles/14/8192/8192.mvt')).statusCode,409);
     assert.match((await app.inject('/api/info')).body,/no GeoPackage/);

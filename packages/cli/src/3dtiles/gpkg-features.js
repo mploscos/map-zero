@@ -43,7 +43,7 @@ export function createOwnedFeatureSource(db, metadata, decorate = feature => fea
  */
 
 /**
- * @param {import('better-sqlite3').Database} db
+ * @param {import('../sqlite.js').default} db
  * @param {Record<string, unknown>} manifest
  * @param {string} layerId
  * @returns {LayerMetadata}
@@ -98,7 +98,7 @@ export function readLayerMetadata(db, manifest, layerId) {
 }
 
 /**
- * @param {import('better-sqlite3').Database} db
+ * @param {import('../sqlite.js').default} db
  * @param {LayerMetadata} metadata
  * @param {[number, number, number, number]} bbox
  * @returns {number}
@@ -117,7 +117,7 @@ export function countLayerFeatures(db, metadata, bbox) {
 }
 
 /**
- * @param {import('better-sqlite3').Database} db
+ * @param {import('../sqlite.js').default} db
  * @param {LayerMetadata} metadata
  * @param {[number, number, number, number]} bbox
  * @param {{ limit?: number, seenIds?: Set<number> }} [options]

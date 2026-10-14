@@ -32,7 +32,7 @@ buffer stride.
 
 Set `hitDetection: false` when the application does not call
 `map.forEachFeatureAtPixel()`. This skips WebGL hit-detection buffers; the
-built-in viewer uses this setting because it has no feature-picking workflow.
+repository example viewer uses this setting because it has no feature-picking workflow.
 
 You can force a source mode:
 

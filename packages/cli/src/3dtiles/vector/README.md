@@ -7,7 +7,7 @@ ordinary meshes for extruded geometry.
 The encoder is a small implementation of the public specifications, using the
 existing Earcut dependency for polygon surfaces. It does not import Cesium,
 call ion, decode MVT, write files, or tessellate line ribbons. The MVT source adapter is outside this directory. Full audit and measurements:
-[format and compatibility notes](../../../docs/cesium-format.md).
+[format and compatibility notes](../../../../../docs/cesium-format.md).
 
 | Declaration | Encoding | Status of the audited reference |
 | --- | --- | --- |

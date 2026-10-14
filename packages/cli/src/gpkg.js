@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync } from 'node:fs';
 
-import Database from 'better-sqlite3';
+import Database from './sqlite.js';
 
 import { geometryBbox, quoteIdentifier } from './utils.js';
 

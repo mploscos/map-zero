@@ -1,19 +1,23 @@
 # HTTP API
 
-`map-zero serve` starts a readonly local server for one `.mapzero` package. Delivery-only packages can be previewed without GeoPackage; database inspection and dynamic `/api/` queries then return HTTP 409.
+`map-zero serve` starts a readonly, renderer-independent server for one `.mapzero`
+package. Delivery-only packages can be served without GeoPackage; database
+inspection and dynamic `/api/` queries then return HTTP 409.
 
 ```bash
-node src/cli.js serve ./madrid.mapzero --port 8080 --open
+map-zero serve ./madrid.mapzero --port 8080
 ```
 
 The HTTP API is only required for dynamic GeoPackage-backed serving and local inspection. If you export `tiles.pmtiles` or `3dtiles/`, those artifacts can be served as static files without the map-zero Node server. Cesium loads prebuilt static 3D Tiles and requires no vector-tile endpoint.
 
-## Viewer Routes
+## Service Route
 
 ```text
 GET /
-GET /cesium
 ```
+
+The root returns service metadata. Viewer applications use the independent
+`@map-zero/ol` or `@map-zero/cesium` packages.
 
 ## Package Routes
 
@@ -71,7 +75,7 @@ The dynamic tile path validates layers against the package manifest and uses the
 launching a complete `from-bbox` build.
 
 ```bash
-node src/cli.js bbox-ui --port 8090 --output-root ./generated
+map-zero bbox-ui --port 8090 --output-root ./generated
 ```
 
 Routes:

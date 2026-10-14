@@ -3,7 +3,7 @@ import { join, relative, resolve, sep } from 'node:path';
 import { resolveManifestLayers } from '../manifest.js';
 import { quoteIdentifier } from '../utils.js';
 import { labelAnchorForGeometry } from '../mvt-utils.js';
-import { getLayerRule, mergeFeatureRule } from '../../packages/core/src/style.js';
+import { getLayerRule, mergeFeatureRule } from '@map-zero/core/style.js';
 import { openReadonlyGeoPackage } from './gpkg-buildings.js';
 import { readLayerMetadata, createOwnedFeatureSource } from './gpkg-features.js';
 import { buildTileset, buildContentNode } from './tileset.js';

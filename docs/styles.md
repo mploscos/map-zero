@@ -13,25 +13,25 @@ There are three style-related concepts:
 Apply a full preset:
 
 ```bash
-node src/cli.js style ./madrid.mapzero --preset neon-dark
+map-zero style ./madrid.mapzero --preset neon-dark
 ```
 
 List presets:
 
 ```bash
-node src/cli.js style ./madrid.mapzero --list-presets
+map-zero style ./madrid.mapzero --list-presets
 ```
 
 Apply a bundled theme:
 
 ```bash
-node src/cli.js style ./madrid.mapzero --theme neon-dark
+map-zero style ./madrid.mapzero --theme neon-dark
 ```
 
 Apply a local theme file:
 
 ```bash
-node src/cli.js style ./madrid.mapzero --theme ./my.theme.json
+map-zero style ./madrid.mapzero --theme ./my.theme.json
 ```
 
 ## Compact Theme Example

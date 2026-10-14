@@ -3,10 +3,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { SUPPORTED_LAYERS, geoPackageLayersForOsm } from '../../src/layers.js';
-import { writeGeoPackage } from '../../src/gpkg.js';
-import { openGeoPackageReader } from '../../src/gpkg-read.js';
-import { tileToBbox } from '../../src/mvt.js';
+import { SUPPORTED_LAYERS, geoPackageLayersForOsm } from '../../packages/cli/src/layers.js';
+import { writeGeoPackage } from '../../packages/cli/src/gpkg.js';
+import { openGeoPackageReader } from '../../packages/cli/src/gpkg-read.js';
+import { tileToBbox } from '../../packages/cli/src/mvt.js';
 
 // Exercise SQL selection, layer/global budgets, labels, size filtering and
 // simplification with deterministic features scaled to each tested tile.

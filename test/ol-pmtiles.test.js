@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import Feature from 'ol/Feature.js';
 import { createXYZ } from 'ol/tilegrid.js';
-import { openGeoPackageWriter } from '../src/gpkg.js';
-import { createManifest, resolveManifestLayers } from '../src/manifest.js';
-import { exportPmtiles } from '../src/export-pmtiles.js';
+import { openGeoPackageWriter } from '../packages/cli/src/gpkg.js';
+import { createManifest, resolveManifestLayers } from '../packages/cli/src/manifest.js';
+import { exportPmtiles } from '../packages/cli/src/export-pmtiles.js';
 import { createPmtilesVectorSource, withFeatureZoomVisibility } from '../packages/ol/src/pmtiles.js';
 
 test('generic File/Blob MVT source, stable string IDs, property projection and actual-view visibility', async (t) => {

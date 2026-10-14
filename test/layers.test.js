@@ -6,7 +6,7 @@ import {
   SUPPORTED_LAYERS,
   layersForRelation,
   layersForWay
-} from '../src/layers.js';
+} from '../packages/cli/src/layers.js';
 
 test('terrain edge layers are supported OSM layers', () => {
   assert.ok(SUPPORTED_LAYERS.includes('terrain'));

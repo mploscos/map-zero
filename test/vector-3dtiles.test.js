@@ -5,14 +5,14 @@ import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {Cartesian3} from 'cesium';
-import {encodeVectorContent} from '../src/3dtiles/vector/encode-vector-gltf.js';
-import {validateVectorGlb} from '../src/3dtiles/vector/validate.js';
-import {VECTOR_FORMAT as E,declareVectorTileset} from '../src/3dtiles/vector/extensions.js';
-import {createCesiumTileset} from '../src/3dtiles/create-tileset.js';
-import {export3dTiles,exportCesiumTileset} from '../src/3dtiles/export.js';
-import {writeGeoPackage} from '../src/gpkg.js';
-import decode from '../src/3dtiles/mvt/decode.js';
-import {decodedFeatures} from '../src/3dtiles/mvt/features.js';
+import {encodeVectorContent} from '../packages/cli/src/3dtiles/vector/encode-vector-gltf.js';
+import {validateVectorGlb} from '../packages/cli/src/3dtiles/vector/validate.js';
+import {VECTOR_FORMAT as E,declareVectorTileset} from '../packages/cli/src/3dtiles/vector/extensions.js';
+import {createCesiumTileset} from '../packages/cli/src/3dtiles/create-tileset.js';
+import {export3dTiles,exportCesiumTileset} from '../packages/cli/src/3dtiles/export.js';
+import {writeGeoPackage} from '../packages/cli/src/gpkg.js';
+import decode from '../packages/cli/src/3dtiles/mvt/decode.js';
+import {decodedFeatures} from '../packages/cli/src/3dtiles/mvt/features.js';
 import {probeCesiumTopology} from './helpers/cesium-topology.js';
 
 function property(result,name,row) {
@@ -28,7 +28,7 @@ function property(result,name,row) {
 }
 
 test('preview compatibility is pinned to the audited loader and renderer sources',async()=>{
-  const hashes=JSON.parse(await readFile(new URL('../src/3dtiles/vector/cesium-compatibility.json',import.meta.url)));
+  const hashes=JSON.parse(await readFile(new URL('../packages/cli/src/3dtiles/vector/cesium-compatibility.json',import.meta.url)));
   assert.equal(JSON.parse(await readFile(new URL('../node_modules/cesium/package.json',import.meta.url))).version,E.cesium);
   for(const [name,expected]of Object.entries(hashes)){
     const bytes=await readFile(new URL(`../node_modules/@cesium/engine/Source/${name}`,import.meta.url));

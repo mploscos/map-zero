@@ -6,13 +6,13 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { deflateSync } from 'node:zlib';
 
-import Database from 'better-sqlite3';
+import Database from '../packages/cli/src/sqlite.js';
 
-import { buildPackage } from '../src/build.js';
-import { openGeoPackageWriter, writeGeoPackage } from '../src/gpkg.js';
-import { openGeoPackageReader } from '../src/gpkg-read.js';
-import { geoPackageLayersForOsm, LAYER_DEFINITIONS, SUPPORTED_LAYERS } from '../src/layers.js';
-import { quoteIdentifier } from '../src/utils.js';
+import { buildPackage } from '../packages/cli/src/build.js';
+import { openGeoPackageWriter, writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { openGeoPackageReader } from '../packages/cli/src/gpkg-read.js';
+import { geoPackageLayersForOsm, LAYER_DEFINITIONS, SUPPORTED_LAYERS } from '../packages/cli/src/layers.js';
+import { quoteIdentifier } from '../packages/cli/src/utils.js';
 
 const bbox = [-5, -5, 5, 5];
 const point = { type: 'Point', coordinates: [0, 0] };

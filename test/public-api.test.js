@@ -8,8 +8,8 @@ import * as legacyReader from '@map-zero/cli/src/gpkg-read.js';
 import * as legacyManifest from '@map-zero/cli/src/manifest.js';
 import { exportPmtiles } from '@map-zero/cli/export-pmtiles';
 import * as coreAip from '../packages/core/src/aip.js';
-import * as nodeAip from '../src/aip.js';
-import { exportPmtiles as legacyExportPmtiles } from '../src/export-pmtiles.js';
+import * as nodeAip from '../packages/cli/src/aip.js';
+import { exportPmtiles as legacyExportPmtiles } from '../packages/cli/src/export-pmtiles.js';
 
 test('public GeoPackage and manifest entry points reuse existing implementations and preserve deep imports', () => {
   assert.equal(openGeoPackageWriter, legacyWriter.openGeoPackageWriter);

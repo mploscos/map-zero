@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Color } from 'cesium';
 import { createStaticTileStyle, createStaticTileStyleFactory } from '../packages/cesium/src/static-style.js';
-import { buildGlbFromMesh } from '../src/3dtiles/glb.js';
+import { buildGlbFromMesh } from '../packages/cli/src/3dtiles/glb.js';
 
 const feature = (values) => ({ getProperty: (key) => values[key] });
 

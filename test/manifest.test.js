@@ -4,28 +4,29 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import Database from 'better-sqlite3';
+import Database from '../packages/cli/src/sqlite.js';
 import MVT from 'ol/format/MVT.js';
 import Feature from 'ol/Feature.js';
 import { PMTiles } from 'pmtiles';
 import { Color } from 'cesium';
 
-import { createManifest, resolveManifestLayers, isLayerInZoomRange } from '../src/manifest.js';
+import { createManifest, resolveManifestLayers, isLayerInZoomRange } from '../packages/cli/src/manifest.js';
 import { resolveManifestLayers as resolveCoreLayers } from '../packages/core/src/manifest.js';
 import { orderManifestLayers } from '../packages/core/src/style.js';
 import { createMapZeroOpenLayersLayers } from '../packages/ol/src/index.js';
 import { createMapZeroLabelLayer } from '../packages/ol/src/labels.js';
 import { createStaticTileStyle } from '../packages/cesium/src/static-style.js';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { openGeoPackageReader } from '../src/gpkg-read.js';
-import { createMapZeroServer } from '../src/server.js';
-import { encodeMvtTileWithStats, encodeMvtTileSetWithStats } from '../src/mvt.js';
-import { exportPmtiles } from '../src/export-pmtiles.js';
-import { LocalPmtilesSource } from '../src/pmtiles-source.js';
-import { export3dTiles } from '../src/3dtiles/export.js';
-import { readLayerMetadata, readLayerFeatures } from '../src/3dtiles/gpkg-features.js';
-import { createHiddenFilters } from '../src/style-filters.js';
-import { writePackageStyle } from '../src/style-command.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { openGeoPackageReader } from '../packages/cli/src/gpkg-read.js';
+import { createMapZeroServer } from '../packages/cli/src/server.js';
+import { encodeMvtTileWithStats, encodeMvtTileSetWithStats } from '../packages/cli/src/mvt.js';
+import { exportPmtiles } from '../packages/cli/src/export-pmtiles.js';
+import { LocalPmtilesSource } from '../packages/cli/src/pmtiles-source.js';
+import { export3dTiles } from '../packages/cli/src/3dtiles/export.js';
+import { readLayerMetadata, readLayerFeatures } from '../packages/cli/src/3dtiles/gpkg-features.js';
+import { createHiddenFilters } from '../packages/cli/src/style-filters.js';
+import { writePackageStyle } from '../packages/cli/src/style-command.js';
+import { createViewerExampleServer } from '../examples/viewer-server.mjs';
 
 const bbox = [0.001, 0.001, 0.003, 0.003];
 const ring = [[0.001, 0.001], [0.003, 0.001], [0.003, 0.003], [0.001, 0.003], [0.001, 0.001]];
@@ -166,7 +167,7 @@ test('OSM aliases resolve descriptors without replacing explicitly declared ids'
   } finally { both.close(); }
 });
 
-test('server exposes descriptor metadata, preserves the manifest and serves browser dependencies', async (t) => {
+test('CLI server exposes data endpoints without bundling renderer assets', async (t) => {
   const { dir, manifest } = await fixture(t);
   const app = await createMapZeroServer({ packageDir: dir });
   try {
@@ -178,10 +179,19 @@ test('server exposes descriptor metadata, preserves the manifest and serves brow
     const tile = await app.inject('/api/tiles/regions/14/8192/8191.mvt');
     assert.equal(tile.statusCode, 200);
     assert.equal(decodeTile(tile.rawPayload)[0].get('layer'), 'regions');
-    for (const path of ['/map-zero-core/manifest.js', '/map-zero-core/shared/layers.js', '/map-zero-ol.js', '/static-style.js', '/', '/cesium']) {
-      const response = await app.inject(path);
-      assert.equal(response.statusCode, 200, path);
-      assert.ok(response.body.includes('resolveManifestLayers'), path);
+    assert.equal((await app.inject('/')).json().format, 'mapzero-server');
+    for (const path of ['/map-zero-core/manifest.js', '/map-zero-ol.js', '/static-style.js', '/cesium']) {
+      assert.equal((await app.inject(path)).statusCode, 404, path);
+    }
+  } finally { await app.close(); }
+});
+
+test('viewer examples compose the independent OL, Cesium and Core packages', async (t) => {
+  const { dir } = await fixture(t);
+  const app = await createViewerExampleServer({ packageDir: dir });
+  try {
+    for (const path of ['/openlayers', '/cesium', '/map-zero-core/manifest.js', '/map-zero-ol.js', '/static-style.js']) {
+      assert.equal((await app.inject(path)).statusCode, 200, path);
     }
   } finally { await app.close(); }
 });

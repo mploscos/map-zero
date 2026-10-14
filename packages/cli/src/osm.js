@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import Database from './sqlite.js';
 import parseOsmPbf from 'osm-pbf-parser';
 
 import {

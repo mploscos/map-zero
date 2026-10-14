@@ -2,7 +2,7 @@ export {
   geometryBbox,
   labelAnchorForGeometry,
   visitCoordinates
-} from '../packages/core/src/geometry.js';
+} from '@map-zero/core/geometry.js';
 
 /**
  * @param {[number, number, number, number]} bbox

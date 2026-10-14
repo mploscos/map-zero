@@ -4,12 +4,12 @@ import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {decodeMVT as referenceDecode,Cesium3DTileset,HeightReference} from 'cesium';
-import decode from '../src/3dtiles/mvt/decode.js';
-import {writeGeoPackage} from '../src/gpkg.js';
-import {export3dTiles} from '../src/3dtiles/export.js';
-import {validateVectorGlb} from '../src/3dtiles/vector/validate.js';
+import decode from '../packages/cli/src/3dtiles/mvt/decode.js';
+import {writeGeoPackage} from '../packages/cli/src/gpkg.js';
+import {export3dTiles} from '../packages/cli/src/3dtiles/export.js';
+import {validateVectorGlb} from '../packages/cli/src/3dtiles/vector/validate.js';
 import {createMapZeroCesiumTilesets} from '../packages/cesium/src/index.js';
-import {packageMapZero} from '../src/package.js';
+import {packageMapZero} from '../packages/cli/src/package.js';
 import {unzipSync} from 'fflate';
 
 test('MVT adapter retains the pinned decoder semantics without a runtime Cesium dependency',async()=>{

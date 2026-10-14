@@ -1,12 +1,12 @@
 import { packageNameFromPath } from './utils.js';
-import { resolveManifestLayers } from '../packages/core/src/manifest.js';
+import { resolveManifestLayers } from '@map-zero/core/manifest.js';
 
-export { resolveManifestLayers, isLayerInZoomRange, isFeatureInZoomRange } from '../packages/core/src/manifest.js';
+export { resolveManifestLayers, isLayerInZoomRange, isFeatureInZoomRange } from '@map-zero/core/manifest.js';
 
 /**
  * Create a map-zero package manifest.
  *
- * @param {{ outDir: string, bbox: [number, number, number, number], layers: Array<string | import('../packages/core/src/manifest.js').ManifestLayerInput> }} options
+ * @param {{ outDir: string, bbox: [number, number, number, number], layers: Array<string | import('@map-zero/core/manifest.js').ManifestLayerInput> }} options
  * @returns {Record<string, unknown>}
  */
 export function createManifest(options) {

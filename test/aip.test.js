@@ -10,11 +10,11 @@ import {
   AIP_AIRPORT_CATALOG_FORMAT,
   createAipAirportCatalog
 } from '../packages/core/src/aip.js';
-import { exportAipAirportCatalog } from '../src/aip.js';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { createManifest } from '../src/manifest.js';
-import { packageMapZero } from '../src/package.js';
-import { createMapZeroServer } from '../src/server.js';
+import { exportAipAirportCatalog } from '../packages/cli/src/aip.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { createManifest } from '../packages/cli/src/manifest.js';
+import { packageMapZero } from '../packages/cli/src/package.js';
+import { createMapZeroServer } from '../packages/cli/src/server.js';
 
 const bbox = [-0.02, -0.02, 0.02, 0.02];
 const airportRing = [[-0.015, -0.01], [0.015, -0.01], [0.015, 0.01], [-0.015, 0.01], [-0.015, -0.01]];

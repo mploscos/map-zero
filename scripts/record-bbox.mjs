@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
-import { serveBboxBuilder } from '../src/bbox-server.js';
+import { serveBboxBuilder } from '../packages/cli/src/bbox-server.js';
 
 const output = resolve('docs/media');
 const frames = await mkdtemp(join(tmpdir(), 'map-zero-bbox-'));

@@ -1,6 +1,6 @@
 import { basename, extname } from 'node:path';
 
-export { geometryBbox, pointInRing } from '../packages/core/src/geometry.js';
+export { geometryBbox, pointInRing } from '@map-zero/core/geometry.js';
 
 /**
  * Parse and validate a bbox string.

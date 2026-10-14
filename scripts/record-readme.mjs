@@ -5,14 +5,14 @@ import { mkdir, mkdtemp, readFile, rm, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { createMapZeroServer } from '../src/server.js';
+import { createViewerExampleServer } from '../examples/viewer-server.mjs';
 
 const packageDir = resolve(process.argv[2] ?? 'generated/readme-demo.mapzero');
 const output = resolve('docs/media');
 const logPath = process.argv[3] ?? join(output, 'generation.log');
 const frames = await mkdtemp(join(tmpdir(), 'map-zero-gifs-'));
 await mkdir(output, { recursive: true });
-const app = await createMapZeroServer({ packageDir });
+const app = await createViewerExampleServer({ packageDir });
 const url = await app.listen({ host: '127.0.0.1', port: 0 });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1120, height: 680 }, deviceScaleFactor: 1 });
@@ -50,7 +50,7 @@ try {
   }
   await encode('generate', 4);
 
-  await page.goto(url + '/?lon=-3.703&lat=40.4175&zoom=17', { timeout: 60000 });
+  await page.goto(url + '/openlayers?lon=-3.703&lat=40.4175&zoom=17', { timeout: 60000 });
   await page.waitForFunction(() => globalThis.mapZeroMap && document.querySelector('#status').textContent.includes('ready'));
   await page.waitForTimeout(3000);
   await caption('MAP ZERO / 02 EXPLORE', 'The same data. In 2D.', 'OpenLayers · vector PMTiles · local data');

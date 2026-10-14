@@ -6,7 +6,6 @@ import Fastify from 'fastify';
 
 import { openGeoPackageReader } from './gpkg-read.js';
 import { resolveManifestLayers } from './manifest.js';
-import { createCesiumViewerHtml, createViewerHtml } from './html.js';
 import { encodeMvtTileSetWithStats, encodeMvtTileWithStats } from './mvt.js';
 import { createHiddenFilters } from './style-filters.js';
 import { TileCache } from './tile-cache.js';
@@ -51,7 +50,6 @@ export async function createMapZeroServer(options) {
     if (error.code !== 'ENOENT') throw error;
     if (!manifest.tiles && !manifest.tiles3d) throw new Error('GeoPackage is missing and no static exports are available');
   }
-  const assetVersion = String(Date.now());
   const tileCache = options.tileCache === false
     ? null
     : new TileCache(options.tileCacheSize ?? 500);
@@ -67,8 +65,8 @@ export async function createMapZeroServer(options) {
     reader?.close();
   });
 
-  // The optional preview server can serve delivery-only packages. Database
-  // inspection and dynamic OpenLayers MVT still require the persistent source.
+  // Static delivery works without GeoPackage. Inspection and dynamic MVT
+  // endpoints require the persistent source.
   app.addHook('preHandler', async (request, reply) => {
     if (!reader && request.routeOptions.url?.startsWith('/api/')) {
       return reply.code(409).send({ error: 'This static package has no GeoPackage for dynamic queries' });
@@ -85,88 +83,12 @@ export async function createMapZeroServer(options) {
   app.get('/', async (request, reply) => {
     reply
       .header('cache-control', 'no-store')
-      .type('text/html; charset=utf-8')
-      .send(createViewerHtml({ assetVersion }));
+      .send({
+        format: 'mapzero-server',
+        manifest: '/manifest.json',
+        api: reader ? { info: '/api/info', layers: '/api/layers', tiles: '/api/tiles/{z}/{x}/{y}.mvt' } : null
+      });
   });
-
-  app.get('/cesium', async (request, reply) => {
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/html; charset=utf-8')
-      .send(createCesiumViewerHtml({ assetVersion }));
-  });
-
-  app.get('/map-zero-ol.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/ol/src/index.js', import.meta.url), 'utf8');
-    const cacheBustedSource = rewriteCoreModuleImports(moduleSource)
-      .replace(
-        "from './labels.js';",
-        `from './labels.js?v=${encodeURIComponent(assetVersion)}';`
-      );
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(cacheBustedSource);
-  });
-
-  app.get('/labels.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/ol/src/labels.js', import.meta.url), 'utf8');
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(rewriteCoreModuleImports(moduleSource));
-  });
-
-  app.get('/pmtiles.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/ol/src/pmtiles.js', import.meta.url), 'utf8');
-    reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8')
-      .send(rewriteCoreModuleImports(moduleSource));
-  });
-
-  app.get('/zoom.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('../packages/ol/src/zoom.js', import.meta.url), 'utf8');
-    reply
-      .header('cache-control', 'no-store')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
-
-  app.get('/vendor/pmtiles.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL(import.meta.resolve('pmtiles')), 'utf8');
-    reply
-      .header('cache-control', 'public, max-age=31536000, immutable')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
-
-  app.get('/vendor/fflate.js', async (request, reply) => {
-    const moduleSource = await fs.readFile(new URL('./browser.js', import.meta.resolve('fflate')), 'utf8');
-    reply
-      .header('cache-control', 'public, max-age=31536000, immutable')
-      .type('text/javascript; charset=utf-8')
-      .send(moduleSource);
-  });
-
-  for (const [route, name] of [['/map-zero-cesium.js', 'index.js'], ['/static-style.js', 'static-style.js'], ['/cesium-labels.js', 'cesium-labels.js']]) {
-    app.get(route, async (request, reply) => {
-      const source = await fs.readFile(new URL(`../packages/cesium/src/${name}`, import.meta.url), 'utf8');
-      reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8')
-        .send(rewriteCoreModuleImports(source).replace(/import\s*\{([^}]+)\}\s*from 'cesium';/g,
-          'const {$1} = globalThis.Cesium;'));
-    });
-  }
-  for (const [route, allowed] of [
-    ['/map-zero-core/:name', ['style.js', 'labels.js', 'manifest.js']],
-    ['/map-zero-core/shared/:name', ['cache.js', 'layers.js']]
-  ]) {
-    app.get(route, async (request, reply) => {
-      const name = String(request.params.name ?? '');
-      if (!allowed.includes(name)) return reply.code(404).send({ error: 'not found' });
-      const directory = route.includes('/shared/') ? 'shared/' : '';
-      const source = await fs.readFile(new URL(`../packages/core/src/${directory}${name}`, import.meta.url), 'utf8');
-      return reply.header('cache-control', 'no-store').type('text/javascript; charset=utf-8').send(source);
-    });
-  }
 
   app.get('/manifest.json', async (request, reply) => {
     reply.header('cache-control', 'no-store').send(manifest);
@@ -380,17 +302,6 @@ function sendTileReply(reply, buffer, cacheStatus) {
     .header('X-MapZero-Cache', cacheStatus)
     .type('application/vnd.mapbox-vector-tile')
     .send(buffer);
-}
-
-/**
- * Browser viewer assets are served directly from source files. Keep shared
- * shared module imports resolvable without requiring a workspace symlink.
- *
- * @param {string} source
- * @returns {string}
- */
-function rewriteCoreModuleImports(source) {
-  return source.replaceAll('../../core/src/', '/map-zero-core/');
 }
 
 /**

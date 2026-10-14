@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { labelAnchorForGeometry } from '../src/mvt.js';
+import { labelAnchorForGeometry } from '../packages/cli/src/mvt.js';
 import { describeLabel } from '../packages/core/src/labels.js';
 import { cesiumLabelPresentation, selectLabels } from '../packages/cesium/src/cesium-labels.js';
 import { Color } from 'cesium';

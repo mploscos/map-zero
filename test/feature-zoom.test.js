@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import Database from '../packages/cli/src/sqlite.js';
 import MVT from 'ol/format/MVT.js';
 import { writeGeoPackage } from '@map-zero/cli/gpkg';
 import { openGeoPackageReader } from '@map-zero/cli/gpkg-read';
 import { resolveManifestLayers } from '@map-zero/cli/manifest';
-import { encodeMvtTileSet } from '../src/mvt.js';
+import { encodeMvtTileSet } from '../packages/cli/src/mvt.js';
 
 const bbox = [0, 0, 0.01, 0.01];
 const descriptor = { id: 'observations', table: 'survey', minZoom: 1, maxZoom: 12,

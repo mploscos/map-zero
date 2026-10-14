@@ -22,16 +22,16 @@ npm run docs:record:bbox
 This opens the real builder on a temporary local port, loads OpenStreetMap basemap tiles, draws a bbox with mouse interactions, and chooses an output name and export formats. It asserts that coordinates were populated and records `bbox-builder.gif` plus a static preview. It does not submit a generation job or simulate build results.
 
 
-Use Node 22+, Chromium, FFmpeg and `npm ci`. Set `CHROMIUM_PATH` if Chromium is not installed at `/usr/bin/chromium`. The viewers load JS/CSS dependencies from CDNs; map data stays local. The recorder uses an isolated browser profile and a temporary local server.
+Use Node 24.2+, Chromium, FFmpeg and `npm ci`. Set `CHROMIUM_PATH` if Chromium is not installed at `/usr/bin/chromium`. The example viewers load JS/CSS dependencies from CDNs; map data stays local. The recorder uses an isolated browser profile and a temporary local server.
 
 ```bash
 mkdir -p docs/media
-node src/cli.js build data/madrid.osm.pbf \
+node packages/cli/src/cli.js build data/madrid.osm.pbf \
   --bbox -3.710,40.413,-3.696,40.422 \
   --out generated/readme-demo.mapzero > docs/media/generation.log 2>&1
-node src/cli.js pmtiles generated/readme-demo.mapzero \
+node packages/cli/src/cli.js pmtiles generated/readme-demo.mapzero \
   --minzoom 8 --maxzoom 16 --workers 4 >> docs/media/generation.log 2>&1
-node src/cli.js 3dtiles generated/readme-demo.mapzero >> docs/media/generation.log 2>&1
+node packages/cli/src/cli.js 3dtiles generated/readme-demo.mapzero >> docs/media/generation.log 2>&1
 npm run docs:record -- generated/readme-demo.mapzero docs/media/generation.log
 npm run test:browser -- generated/readme-demo.mapzero
 ```

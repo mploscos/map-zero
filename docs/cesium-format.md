@@ -1,6 +1,6 @@
 # Cesium vector format: implementation notes
 
-map-zero 0.6.0 writes static vector context and ordinary extruded building meshes.
+map-zero 0.7.0 writes static vector context and ordinary extruded building meshes.
 The viewer defaults to `HeightReference.NONE`. On the evaluated flat Madrid
 scene, disabling clamping substantially reduced motion stalls while retaining
 acceptable appearance. This does not establish equivalent results on terrain
@@ -13,7 +13,7 @@ Native vector data is a Cesium Technology Preview based on public drafts:
 `3DTILES_content_gltf_vector`, `KHR_mesh_primitive_restart`, `EXT_mesh_polygon`,
 plus `EXT_mesh_features` and `EXT_structural_metadata`. These are not presented
 as a finalized 3D Tiles 2.0 standard. Exact revisions and audited runtime hashes
-are in `src/3dtiles/vector/`. Re-audit them when upgrading Cesium.
+are in `packages/cli/src/3dtiles/vector/`. Re-audit them when upgrading Cesium.
 
 Sources: [content draft](https://github.com/CesiumGS/3d-tiles/pull/838),
 [polygon draft](https://github.com/KhronosGroup/glTF/pull/2570),
@@ -22,7 +22,7 @@ The older `CESIUM_mesh_vector` encoding and its writer are not shipped.
 
 GeoPackage → in-memory MVT → decoded features → vector GLB preserves the tested
 cartographic pipeline. No intermediate MVT files are generated. The decoder in
-`src/3dtiles/mvt/` is attributed Apache-2.0 code adapted from Cesium 1.145, using
+`packages/cli/src/3dtiles/mvt/` is attributed Apache-2.0 code adapted from Cesium 1.145, using
 native Error. Production export imports no Cesium modules and requires no ion
 service. The vector writer uses the specifications and Earcut; lines are native
 LINE_STRIP primitives rather than ribbons.

@@ -5,8 +5,8 @@ import { mkdtemp, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { exportPmtiles } from '../src/export-pmtiles.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { exportPmtiles } from '../packages/cli/src/export-pmtiles.js';
 
 async function fixture(t) {
   const dir = await mkdtemp(join(tmpdir(), 'mapzero-stream-'));

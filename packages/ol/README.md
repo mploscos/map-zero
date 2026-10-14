@@ -20,8 +20,8 @@ by default and remain available as properties as well as `feature.getId()`.
 Use `withFeatureZoomVisibility(style, {layers, getZoom})` with `getZoom` reading
 the actual map view. Invalidate the layer on `change:resolution` so cached Canvas
 replays update during overzoom. This filters the whole style, including labels.
-The lightweight subpath is `@map-zero/ol/pmtiles` (or `map-zero/ol/pmtiles` in the
-combined package); both helpers are also re-exported from the OL entry point.
+The lightweight subpath is `@map-zero/ol/pmtiles`; both helpers are also
+re-exported from the OL entry point.
 
 New archives store normalized descriptors in `mapzero:layers` metadata, enabling
 standalone local-file visibility. Supply a manifest for older archives that lack

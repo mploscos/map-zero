@@ -7,14 +7,14 @@ import test from 'node:test';
 import MVT from 'ol/format/MVT.js';
 import { PMTiles } from 'pmtiles';
 
-import { createManifest } from '../src/manifest.js';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { openGeoPackageReader } from '../src/gpkg-read.js';
-import { createHiddenFilters } from '../src/style-filters.js';
-import { encodeMvtTile, encodeMvtTileSet, encodeMvtTileWithStats, encodeMvtTileSetWithStats } from '../src/mvt.js';
-import { getOsmLayerPolicy } from '../src/mvt-osm-policy.js';
-import { exportPmtiles } from '../src/export-pmtiles.js';
-import { LocalPmtilesSource } from '../src/pmtiles-source.js';
+import { createManifest } from '../packages/cli/src/manifest.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { openGeoPackageReader } from '../packages/cli/src/gpkg-read.js';
+import { createHiddenFilters } from '../packages/cli/src/style-filters.js';
+import { encodeMvtTile, encodeMvtTileSet, encodeMvtTileWithStats, encodeMvtTileSetWithStats } from '../packages/cli/src/mvt.js';
+import { getOsmLayerPolicy } from '../packages/cli/src/mvt-osm-policy.js';
+import { exportPmtiles } from '../packages/cli/src/export-pmtiles.js';
+import { LocalPmtilesSource } from '../packages/cli/src/pmtiles-source.js';
 import { osmFixture, osmCases, osmSnapshot } from './fixtures/mvt-osm.js';
 
 const bbox = [0.01, 0.01, 0.12, 0.12];

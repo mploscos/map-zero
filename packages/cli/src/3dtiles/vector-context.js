@@ -3,7 +3,7 @@ import { openGeoPackageReader } from '../gpkg-read.js';
 import { encodeMvtTileSetWithStats, tileToBbox } from '../mvt.js';
 import { createSparseTilePlan } from '../pmtiles-plan.js';
 import { labelAnchorForGeometry } from '../mvt-utils.js';
-import { getLayerRule, mergeFeatureRule } from '../../packages/core/src/style.js';
+import { getLayerRule, mergeFeatureRule } from '@map-zero/core/style.js';
 import { createCesiumTileset } from './create-tileset.js';
 import { encodeVectorContent } from './vector/encode-vector-gltf.js';
 import decodeMvt from './mvt/decode.js';

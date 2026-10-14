@@ -10,7 +10,7 @@ const layers = resolveManifestLayers({
 });
 ```
 
-See the [custom data guide](https://github.com/mploscos/map-zero/blob/main/docs/custom-data.md) for storage schemas, manifest descriptors and a complete GeoPackage/PMTiles example. The Node writer and exporter are provided by the `map-zero` package.
+See the [custom data guide](https://github.com/mploscos/map-zero/blob/main/docs/custom-data.md) for storage schemas, manifest descriptors and a complete GeoPackage/PMTiles example. The Node writer and exporter are provided by `@map-zero/cli`.
 
 Application-facing AIP catalogs use the renderer-independent core contract:
 

@@ -7,19 +7,25 @@
 - Styles live outside the GeoPackage as JSON.
 - OpenLayers and Cesium helpers add map-zero packages to existing viewers without owning the application.
 
+The repository root is a private npm workspace coordinator. Four packages are
+published independently: `@map-zero/cli`, `@map-zero/core`, `@map-zero/ol` and
+`@map-zero/cesium`. CLI, OL and Cesium consume Core through its public exports;
+the CLI has no dependency on either renderer package. Complete viewers are
+development examples rather than CLI assets.
+
 For application-facing definitions and a complete example, see [Custom geospatial data](custom-data.md).
 
 ## Core Pipeline
 
-- `src/cli.js`: command wiring, argument parsing, terminal progress output.
-- `src/build.js`: package build orchestration and output folder creation.
-- `src/osm.js`: streamed OSM PBF scan, temporary SQLite build store, geometry extraction.
-- `src/layers.js`: logical layer definitions, OSM tag matching, layer property normalization, including subtle 2D terrain edge overlays for coastline, beach/sand, and cliffs.
+- `packages/cli/src/cli.js`: command wiring, argument parsing, terminal progress output.
+- `packages/cli/src/build.js`: package build orchestration and output folder creation.
+- `packages/cli/src/osm.js`: streamed OSM PBF scan, temporary SQLite build store, geometry extraction.
+- `packages/cli/src/layers.js`: logical layer definitions, OSM tag matching, layer property normalization, including subtle 2D terrain edge overlays for coastline, beach/sand, and cliffs.
 - `packages/core/src/aip.js`: source-neutral airport catalog contract plus OSM and normalized AIP feature adaptation.
-- `src/aip.js`: Node adapter for GeoPackage reads, catalog output and manifest updates.
-- `src/gpkg.js`: GeoPackage creation and incremental feature writes.
-- `src/gpkg-read.js`: readonly GeoPackage metadata and tile feature queries.
-- `src/geometry-read.js`: GeoPackage binary geometry decoding.
+- `packages/cli/src/aip.js`: Node adapter for GeoPackage reads, catalog output and manifest updates.
+- `packages/cli/src/gpkg.js`: GeoPackage creation and incremental feature writes.
+- `packages/cli/src/gpkg-read.js`: readonly GeoPackage metadata and tile feature queries.
+- `packages/cli/src/geometry-read.js`: GeoPackage binary geometry decoding.
 
 ### Public GeoPackage API
 
@@ -32,7 +38,7 @@ import { createManifest, resolveManifestLayers, isLayerInZoomRange } from '@map-
 ```
 
 These export the existing implementations directly. Legacy deep imports such as
-`map-zero/src/gpkg.js` remain available. The writer accepts typed layer schemas;
+`@map-zero/cli/src/gpkg.js` remain available. The writer accepts typed layer schemas;
 reader and manifest helpers accept public IDs mapped to independent SQL tables.
 No adapter-specific schema or conversion logic is included in these entry points.
 
@@ -171,10 +177,10 @@ writer's lifetime, including numeric zero; missing, null, or empty ids are not
 deduplicated. Opening a writer always creates a new file, not an append session.
 
 OSM callers convert their canonical layer ids with
-`geoPackageLayersForOsm(layerIds)` from `src/layers.js` before calling either
+`geoPackageLayersForOsm(layerIds)` from `packages/cli/src/layers.js` before calling either
 writer function. This replaces the internal writer's previous `string[]`
 argument. `buildPackage`, the CLI, and OSM table schemas remain unchanged.
-`src/gpkg-read.js` discovers table metadata and
+`packages/cli/src/gpkg-read.js` discovers table metadata and
 preserves numeric values; use `{ layers: ['airspaces'] }` in its manifest input
 to read an external layer. Unknown layer IDs use generic MVT/PMTiles cartography. Known OSM IDs retain the default OSM policy; 3D export retains its existing strategies.
 
@@ -219,7 +225,7 @@ strategies. Existing 3D layer strategies now resolve their storage table through
 the manifest, including `buildings`.
 
 The shared, browser-safe API is in `packages/core/src/manifest.js` (published as
-`@map-zero/core/manifest.js`) and re-exported by `src/manifest.js`:
+`@map-zero/core/manifest.js`) and re-exported by `packages/cli/src/manifest.js`:
 
 - `resolveManifestLayers(manifest)` returns copied descriptors with required
   `id` and `table`, preserving optional metadata. A string becomes
@@ -242,17 +248,17 @@ Cesium controller supplies this automatically.
 
 ## 2D Tile Pipeline
 
-- `src/mvt.js`: generic MVT queries, budgets, generalization, clipping, encoding and statistics.
-- `src/mvt-osm-policy.js`: default OSM cartography, SQL query filters, priorities, size thresholds and label layers.
-- `src/mvt-utils.js`: shared geometry and stable feature selection helpers.
-- `src/server.js`: readonly Fastify API, dynamic MVT routes, cache and viewer assets.
-- `src/tile-cache.js`: in-memory LRU cache and in-flight tile request coalescing support.
-- `src/export-pmtiles.js`: PMTiles export orchestration and progress.
-- `src/pmtiles-worker.js`: worker-thread tile generation for PMTiles export.
-- `src/pmtiles.js`: compressed PMTiles archive writer with adaptive directories.
-- `src/pmtiles-source.js`: readonly local PMTiles range source for the native Cesium XYZ adapter.
+- `packages/cli/src/mvt.js`: generic MVT queries, budgets, generalization, clipping, encoding and statistics.
+- `packages/cli/src/mvt-osm-policy.js`: default OSM cartography, SQL query filters, priorities, size thresholds and label layers.
+- `packages/cli/src/mvt-utils.js`: shared geometry and stable feature selection helpers.
+- `packages/cli/src/server.js`: renderer-independent static delivery, readonly Fastify API, dynamic MVT routes and cache.
+- `packages/cli/src/tile-cache.js`: in-memory LRU cache and in-flight tile request coalescing support.
+- `packages/cli/src/export-pmtiles.js`: PMTiles export orchestration and progress.
+- `packages/cli/src/pmtiles-worker.js`: worker-thread tile generation for PMTiles export.
+- `packages/cli/src/pmtiles.js`: compressed PMTiles archive writer with adaptive directories.
+- `packages/cli/src/pmtiles-source.js`: readonly local PMTiles range source for the native Cesium XYZ adapter.
 
-Dynamic serving and PMTiles export both call the same `src/mvt.js` tile generation functions.
+Dynamic serving and PMTiles export both call the same `packages/cli/src/mvt.js` tile generation functions.
 
 ### MVT Layer Policies
 
@@ -291,8 +297,8 @@ Use `originalFeatureCount` for the count before policy post-query filtering.
 Hooks are synchronous and should return new features when modifying them.
 
 ```js
-import { encodeMvtTile } from './src/mvt.js';
-import { getOsmLayerPolicy } from './src/mvt-osm-policy.js';
+import { encodeMvtTile } from '@map-zero/cli/src/mvt.js';
+import { getOsmLayerPolicy } from '@map-zero/cli/src/mvt-osm-policy.js';
 
 const buffer = encodeMvtTile(reader, 'observations', z, x, y, {
   getLayerPolicy(id, descriptor) {
@@ -319,7 +325,7 @@ do not yet accept them. Existing serving/export paths use the default resolver,
 which already supports unknown layers. Style property hiding stays in the
 GeoPackage reader and applies to either policy.
 
-`labelAnchorForGeometry` remains exported from `src/mvt.js` for existing callers.
+`labelAnchorForGeometry` remains exported from `packages/cli/src/mvt.js` for existing callers.
 The OSM regression fixtures record pre-extraction MVT byte hashes, query hashes
 and statistics across zoom thresholds, detail modes, budgets and label layers.
 
@@ -329,17 +335,17 @@ See [Static Cesium delivery](cesium.md) for the public API, representations and 
 The normal Cesium path has no vector-tile provider or PMTiles extraction endpoint.
 
 
-- `src/3dtiles/export.js`: 3D Tiles export orchestration.
-- `src/3dtiles/gpkg-buildings.js`: readonly building queries and height extraction.
-- `src/3dtiles/gpkg-features.js`: readonly feature queries for non-building layers.
-- `src/3dtiles/extrude.js`: building footprint extrusion.
-- `src/3dtiles/clipper-surfaces.js`: independent buffered/dissolved surface utility; the static context exporter keeps per-feature bands to preserve metadata.
-- `src/3dtiles/flat.js`: polygon surfaces with holes and buffered line bands.
-- `src/3dtiles/glb.js`: minimal unlit GLB generation.
-- `src/3dtiles/b3dm.js`: B3DM with standard per-feature batch tables.
-- `src/3dtiles/pnts.js`: batched static point content.
-- `src/3dtiles/context-mesh.js`: generic per-feature meshes with batch IDs; spatial ownership and bounded batching live in the exporter.
-- `src/3dtiles/tileset.js`: tileset JSON generation.
+- `packages/cli/src/3dtiles/export.js`: 3D Tiles export orchestration.
+- `packages/cli/src/3dtiles/gpkg-buildings.js`: readonly building queries and height extraction.
+- `packages/cli/src/3dtiles/gpkg-features.js`: readonly feature queries for non-building layers.
+- `packages/cli/src/3dtiles/extrude.js`: building footprint extrusion.
+- `packages/cli/src/3dtiles/clipper-surfaces.js`: independent buffered/dissolved surface utility; the static context exporter keeps per-feature bands to preserve metadata.
+- `packages/cli/src/3dtiles/flat.js`: polygon surfaces with holes and buffered line bands.
+- `packages/cli/src/3dtiles/glb.js`: minimal unlit GLB generation.
+- `packages/cli/src/3dtiles/b3dm.js`: B3DM with standard per-feature batch tables.
+- `packages/cli/src/3dtiles/pnts.js`: batched static point content.
+- `packages/cli/src/3dtiles/context-mesh.js`: generic per-feature meshes with batch IDs; spatial ownership and bounded batching live in the exporter.
+- `packages/cli/src/3dtiles/tileset.js`: tileset JSON generation.
 
 The default context uses native vector points, lines and polygons. `vector-context.js` selects occupied MVT LODs at build time; `create-tileset.js` owns the hierarchy, and `vector/` owns the format. Extruded geometry retains the mesh encoder.
 
@@ -347,19 +353,19 @@ See [format and compatibility notes](cesium-format.md). The optional mesh contex
 
 ## Style And Rendering
 
-- `src/style-presets.js`: full preset loading and layer filtering.
-- `src/style-themes.js`: compact theme expansion into full style JSON.
-- `src/style.js`: compatibility re-export for style APIs.
-- `src/style-command.js`: `map-zero style` command implementation.
-- `styles/presets/*.json`: full renderer-ready style presets.
-- `styles/themes/*.theme.json`: compact user-editable themes.
+- `packages/cli/src/style-presets.js`: full preset loading and layer filtering.
+- `packages/cli/src/style-themes.js`: compact theme expansion into full style JSON.
+- `packages/cli/src/style.js`: compatibility re-export for style APIs.
+- `packages/cli/src/style-command.js`: `map-zero style` command implementation.
+- `packages/cli/styles/presets/*.json`: full renderer-ready style presets.
+- `packages/cli/styles/themes/*.theme.json`: compact user-editable themes.
 - `packages/ol/src/index.js`: framework-agnostic OpenLayers layer helper.
 - `packages/ol/src/labels.js`: label configuration and compatibility helpers.
 - `packages/cesium/src/index.js`: framework-agnostic Cesium helper.
 - `packages/cesium/src/static-style.js`: color classification and visibility for static 3D feature batches.
 - `packages/cesium/src/cesium-labels.js`: bounded labels selected from visible structural metadata or mesh batch tables.
 - `packages/core/src/`: shared theme rules, label selection and bounded caches without renderer dependencies.
-- `src/html.js`: built-in OpenLayers and Cesium viewer shells.
+- `examples/`: complete OpenLayers and Cesium viewer composition used by browser checks and documentation captures; these sources are not shipped with the CLI.
 
 ## Package Layout
 
@@ -385,16 +391,16 @@ PMTiles and 3D Tiles do not require a map-zero runtime server after export. The 
 
 ## Refactor Notes
 
-- `src/mvt-osm-policy.js`: existing OSM rules remain together behind one resolver; further subdivision is optional. Custom encoder callbacks are not transported to PMTiles workers or exposed through server configuration.
-- `src/osm.js`: streamed parser and disk-backed build pipeline are coupled. A future refactor can split temp-store access and geometry builders.
-- `src/export-pmtiles.js`: export planning, worker scheduling and PMTiles staging are coupled. A future refactor can split estimation/progress from worker orchestration.
+- `packages/cli/src/mvt-osm-policy.js`: existing OSM rules remain together behind one resolver; further subdivision is optional. Custom encoder callbacks are not transported to PMTiles workers or exposed through server configuration.
+- `packages/cli/src/osm.js`: streamed parser and disk-backed build pipeline are coupled. A future refactor can split temp-store access and geometry builders.
+- `packages/cli/src/export-pmtiles.js`: export planning, worker scheduling and PMTiles staging are coupled. A future refactor can split estimation/progress from worker orchestration.
 - `packages/ol/src/index.js`: source creation, style interpretation and layer creation are coupled. A future refactor can split source adapters from WebGL style generation.
 
 These are implementation notes, not public API.
 
 ### Custom OL PMTiles sources and rendering properties
 
-The public `map-zero/ol/pmtiles` module provides `createPmtilesVectorSource` and
+The public `@map-zero/ol/pmtiles` module provides `createPmtilesVectorSource` and
 `withFeatureZoomVisibility`. HTTP uses PMTiles FetchSource, File/Blob uses its
 slice-backed FileSource, and custom range Sources are accepted. ARINC or other
 application cartography is supplied by the caller. The existing OL renderer

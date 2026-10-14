@@ -6,7 +6,8 @@ GeoPackage, then describe its layers in `manifest.json` and export PMTiles.
 You do not need to edit map-zero or register layers in `LAYER_DEFINITIONS`.
 Those definitions belong to the OSM adapter.
 
-Install the published package with Node.js 22 or newer:
+Install the published package with Node.js 24.2 or newer. SQLite is provided by
+Node itself, so installing the package does not require Python or a C/C++ toolchain:
 
 ```bash
 npm install @map-zero/cli
@@ -105,7 +106,7 @@ const result = await exportPmtiles({ packageDir, minZoom: 4, maxZoom: 14, worker
 console.log(result.outPath, result.writtenTiles, result.outputBytes);
 ```
 
-The manifest remains format `mapzero`, version `1`; package version `0.6.0`
+The manifest remains format `mapzero`, version `1`; package version `0.7.0`
 is a separate concept. The exporter updates the manifest's `tiles` entry.
 It reads features from the closed GeoPackage, without needing the original
 feature objects. Subsequent exports can use the CLI:
@@ -186,7 +187,7 @@ that policy selection. Generic geometry simplification and resource budgets
 still apply; a visible feature is not guaranteed to occupy every intersecting tile.
 
 For a custom OpenLayers application, use `createPmtilesVectorSource` from
-`map-zero/ol/pmtiles` and supply your own styles. The source supports URLs and
+`@map-zero/ol/pmtiles` and supply your own styles. The source supports URLs and
 local File/Blob archives. Use `withFeatureZoomVisibility` and invalidate styles
 on view resolution changes to enforce feature visibility during overzoom; see
 [OpenLayers PMTiles integration](../packages/ol/README.md#custom-pmtiles-cartography).

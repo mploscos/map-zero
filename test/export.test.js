@@ -4,14 +4,14 @@ import { tmpdir, availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { PMTiles, Compression, tileIdToZxy } from 'pmtiles';
-import { writeGeoPackage } from '../src/gpkg.js';
-import { geoPackageLayersForOsm } from '../src/layers.js';
-import { createManifest } from '../src/manifest.js';
-import { exportPmtiles } from '../src/export-pmtiles.js';
-import { writePmtilesArchive } from '../src/pmtiles.js';
-import { LocalPmtilesSource } from '../src/pmtiles-source.js';
-import { export3dTiles } from '../src/3dtiles/export.js';
-import { createMapZeroServer } from '../src/server.js';
+import { writeGeoPackage } from '../packages/cli/src/gpkg.js';
+import { geoPackageLayersForOsm } from '../packages/cli/src/layers.js';
+import { createManifest } from '../packages/cli/src/manifest.js';
+import { exportPmtiles } from '../packages/cli/src/export-pmtiles.js';
+import { writePmtilesArchive } from '../packages/cli/src/pmtiles.js';
+import { LocalPmtilesSource } from '../packages/cli/src/pmtiles-source.js';
+import { export3dTiles } from '../packages/cli/src/3dtiles/export.js';
+import { createMapZeroServer } from '../packages/cli/src/server.js';
 
 async function fixture(t) {
   const dir = await mkdtemp(join(tmpdir(), 'map-zero-export-'));
